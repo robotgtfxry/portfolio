@@ -345,8 +345,12 @@ def get_session_detail(session_id: str) -> dict:
         evts = conn.execute(
             "SELECT * FROM events WHERE session_id = ? ORDER BY occurred_at", (session_id,)
         ).fetchall()
+        contacts = conn.execute(
+            "SELECT * FROM contacts WHERE session_id = ? ORDER BY sent_at", (session_id,)
+        ).fetchall()
     return {
-        "session": _row_to_dict(session) if session else None,
+        "session":  _row_to_dict(session) if session else None,
         "sections": [_row_to_dict(r) for r in sections],
-        "events": [_row_to_dict(r) for r in evts],
+        "events":   [_row_to_dict(r) for r in evts],
+        "contacts": [_row_to_dict(r) for r in contacts],
     }

@@ -211,7 +211,8 @@ class DetailPanel(ScrollableContainer):
     def compose(self) -> ComposeResult:
         yield Static(self._label, id="detail-content")
 
-    def show_session(self, session: dict, sections: list[dict]) -> None:
+    def show_session(self, session: dict, sections: list[dict],
+                     contacts: list[dict] | None = None) -> None:
         lines = [
             f"[bold yellow]ID:[/]        {session.get('session_id','—')[:16]}…",
             f"[bold yellow]IP:[/]        {session.get('ip','—')}",
@@ -236,8 +237,14 @@ class DetailPanel(ScrollableContainer):
             lines.append("\n[bold]Sekcje:[/]")
             for s in sections:
                 lines.append(f"  [cyan]{s['section'].ljust(12)}[/] {fmt_ms(s.get('time_spent'))}")
-        content = "\n".join(lines)
-        self.query_one("#detail-content", Static).update(content)
+        if contacts:
+            lines.append("\n[bold cyan]✉ Wiadomości kontaktowe:[/]")
+            for c in contacts:
+                sent = "[green]✓[/]" if c.get("email_sent") else "[red]✗[/]"
+                lines.append(f"  {sent} [yellow]{fmt_datetime(c.get('sent_at'))}[/]")
+                lines.append(f"     [bold]{c.get('name','—')}[/]  [cyan]{c.get('email','—')}[/]")
+                lines.append(f"     {trunc(c.get('message'), 50)}")
+        self.query_one("#detail-content", Static).update("\n".join(lines))
 
 
 # ── Main App ──────────────────────────────────────────────────────────────────
@@ -469,15 +476,45 @@ class AnalyticsApp(App):
         )
         if not contact:
             return
+
         sent = "[green]✓ Email wysłany[/]" if contact.get("email_sent") else "[red]✗ Email NIE wysłany[/]"
-        detail = (
-            f"[bold yellow]Data:[/]     {fmt_datetime(contact.get('sent_at'))}\n"
-            f"[bold yellow]Imię:[/]     {contact.get('name','—')}\n"
-            f"[bold yellow]Email:[/]    [cyan]{contact.get('email','—')}[/]\n"
-            f"[bold yellow]Email ok:[/] {sent}\n\n"
-            f"[bold]Wiadomość:[/]\n{contact.get('message','—')}"
-        )
-        self.query_one("#contact-detail", Static).update(detail)
+        lines = [
+            f"[bold yellow]Data:[/]      {fmt_datetime(contact.get('sent_at'))}",
+            f"[bold yellow]Imię:[/]      [bold]{contact.get('name','—')}[/]",
+            f"[bold yellow]Email:[/]     [cyan]{contact.get('email','—')}[/]",
+            f"[bold yellow]Email ok:[/]  {sent}",
+            f"\n[bold]Wiadomość:[/]\n{contact.get('message','—')}",
+        ]
+
+        # Linked session
+        session_id = contact.get("session_id")
+        if session_id:
+            session = next(
+                (s for s in self._data.get("recent", []) if s["session_id"] == session_id), None
+            )
+            if session:
+                lines += [
+                    "\n[bold cyan]━━ Sesja nadawcy ━━[/]",
+                    f"[bold yellow]Kraj:[/]     {session.get('country','—')}",
+                    f"[bold yellow]Miasto:[/]   {session.get('city','—')}",
+                    f"[bold yellow]Browser:[/]  {session.get('browser','—')} {session.get('browser_version','')}",
+                    f"[bold yellow]OS:[/]       {session.get('os','—')}",
+                    f"[bold yellow]Urządzenie:[/]{session.get('device_type','—')}",
+                    f"[bold yellow]IP:[/]       {session.get('ip','—')}",
+                    f"[bold yellow]Czas:[/]     {fmt_ms(session.get('total_time'))}",
+                    f"[bold yellow]Scroll:[/]   {session.get('max_scroll',0)}%",
+                    f"[bold yellow]Sekcje:[/]   odwiedzone podczas tej wizyty",
+                ]
+            else:
+                lines.append(f"\n[dim]Sesja {session_id[:12]}… (poza ostatnimi 50)[/]")
+        else:
+            lines.append("\n[dim]Brak powiązanej sesji (wysłano bez śledzenia)[/]")
+
+        self.query_one("#contact-detail", Static).update("\n".join(lines))
+
+        # Również załaduj pełne szczegóły sesji jeśli jest powiązana
+        if session_id:
+            self._load_contact_session(session_id)
 
     @work(exclusive=True, thread=False)
     async def _load_detail(self, session_id: str) -> None:
@@ -485,12 +522,30 @@ class AnalyticsApp(App):
             detail = await fetch_session(session_id)
             if detail.get("session"):
                 self.query_one("#detail-panel", DetailPanel).show_session(
-                    detail["session"], detail.get("sections", [])
+                    detail["session"],
+                    detail.get("sections", []),
+                    detail.get("contacts", []),
                 )
         except Exception as exc:
             self.query_one("#detail-panel", DetailPanel).query_one(
                 "#detail-content", Static
             ).update(f"[red]Błąd: {exc}[/]")
+
+    @work(exclusive=True, thread=False)
+    async def _load_contact_session(self, session_id: str) -> None:
+        try:
+            detail = await fetch_session(session_id)
+            sections = detail.get("sections", [])
+            if not sections:
+                return
+            panel = self.query_one("#contact-detail", Static)
+            current = panel.renderable if hasattr(panel, "renderable") else ""
+            section_lines = "\n[bold cyan]Sekcje odwiedzone:[/]"
+            for s in sections:
+                section_lines += f"\n  [cyan]{s['section'].ljust(12)}[/] {fmt_ms(s.get('time_spent'))}"
+            panel.update(str(current) + section_lines)
+        except Exception:
+            pass
 
     def action_refresh(self) -> None:
         self.load_data()
