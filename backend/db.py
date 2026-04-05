@@ -67,6 +67,18 @@ def init_db() -> None:
                 FOREIGN KEY (session_id) REFERENCES sessions(session_id)
             );
 
+            CREATE TABLE IF NOT EXISTS contacts (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id  TEXT,
+                name        TEXT NOT NULL,
+                email       TEXT NOT NULL,
+                message     TEXT NOT NULL,
+                sent_at     INTEGER NOT NULL,
+                email_sent  INTEGER DEFAULT 0,
+                FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_contacts_session ON contacts(session_id);
             CREATE INDEX IF NOT EXISTS idx_sessions_created     ON sessions(created_at);
             CREATE INDEX IF NOT EXISTS idx_sessions_active      ON sessions(is_active);
             CREATE INDEX IF NOT EXISTS idx_sessions_fingerprint ON sessions(fingerprint);
@@ -208,20 +220,55 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
     return dict(row)
 
 
+def save_contact(session_id: str | None, name: str, email: str, message: str) -> int:
+    now = int(time.time() * 1000)
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO contacts (session_id, name, email, message, sent_at) VALUES (?,?,?,?,?)",
+            (session_id, name, email, message, now),
+        )
+        return cur.lastrowid
+
+
+def mark_email_sent(contact_id: int) -> None:
+    with get_conn() as conn:
+        conn.execute("UPDATE contacts SET email_sent = 1 WHERE id = ?", (contact_id,))
+
+
+def get_contacts(limit: int = 50) -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM contacts ORDER BY sent_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [_row_to_dict(r) for r in rows]
+
+
 def get_active_sessions() -> list[dict]:
     mark_inactive()
     with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM sessions WHERE is_active = 1 ORDER BY last_seen DESC"
-        ).fetchall()
+        rows = conn.execute("""
+            SELECT s.*,
+                   CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS has_contacted
+            FROM sessions s
+            LEFT JOIN contacts c ON c.session_id = s.session_id
+            WHERE s.is_active = 1
+            GROUP BY s.id
+            ORDER BY s.last_seen DESC
+        """).fetchall()
     return [_row_to_dict(r) for r in rows]
 
 
 def get_recent_sessions(limit: int = 50) -> list[dict]:
     with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM sessions ORDER BY created_at DESC LIMIT ?", (limit,)
-        ).fetchall()
+        rows = conn.execute("""
+            SELECT s.*,
+                   CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS has_contacted
+            FROM sessions s
+            LEFT JOIN contacts c ON c.session_id = s.session_id
+            GROUP BY s.id
+            ORDER BY s.created_at DESC
+            LIMIT ?
+        """, (limit,)).fetchall()
     return [_row_to_dict(r) for r in rows]
 
 

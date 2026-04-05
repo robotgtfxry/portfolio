@@ -93,9 +93,37 @@ function ClickSpark({ children }: { children: React.ReactNode }) {
   );
 }
 
+const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+
 export default function Contact() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+
+  const [name,    setName]    = useState("");
+  const [email,   setEmail]   = useState("");
+  const [message, setMessage] = useState("");
+  const [status,  setStatus]  = useState<"idle" | "sending" | "ok" | "error">("idle");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !email || !message) return;
+    setStatus("sending");
+
+    const sessionId = sessionStorage.getItem("_pt_sid");
+
+    try {
+      const res = await fetch(`${BACKEND}/contact`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ session_id: sessionId, name, email, message }),
+      });
+      if (!res.ok) throw new Error("server error");
+      setStatus("ok");
+      setName(""); setEmail(""); setMessage("");
+    } catch {
+      setStatus("error");
+    }
+  };
 
   return (
     <section id="contact" className="relative py-32 px-4">
@@ -151,7 +179,7 @@ export default function Contact() {
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: 0.4, duration: 0.6 }}
             className="space-y-6"
-            onSubmit={(e) => e.preventDefault()}
+            onSubmit={handleSubmit}
           >
             <div className="grid sm:grid-cols-2 gap-6">
               <div>
@@ -159,6 +187,9 @@ export default function Contact() {
                 <input
                   type="text"
                   placeholder="Jan Kowalski"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
                   className="w-full px-4 py-3 rounded-xl bg-card-bg border border-card-border text-white placeholder:text-white/20 focus:outline-none focus:border-neon-cyan/50 transition-colors"
                 />
               </div>
@@ -167,6 +198,9 @@ export default function Contact() {
                 <input
                   type="email"
                   placeholder="jan@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                   className="w-full px-4 py-3 rounded-xl bg-card-bg border border-card-border text-white placeholder:text-white/20 focus:outline-none focus:border-neon-cyan/50 transition-colors"
                 />
               </div>
@@ -177,20 +211,46 @@ export default function Contact() {
               <textarea
                 rows={5}
                 placeholder="Twoja wiadomość..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                required
                 className="w-full px-4 py-3 rounded-xl bg-card-bg border border-card-border text-white placeholder:text-white/20 focus:outline-none focus:border-neon-cyan/50 transition-colors resize-none"
               />
             </div>
 
+            {/* Status messages */}
+            {status === "ok" && (
+              <motion.p
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-neon-cyan font-mono text-sm"
+              >
+                ✓ Wiadomość wysłana! Odezwę się wkrótce.
+              </motion.p>
+            )}
+            {status === "error" && (
+              <motion.p
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-neon-pink font-mono text-sm"
+              >
+                ✗ Błąd wysyłania. Spróbuj ponownie lub napisz bezpośrednio na email.
+              </motion.p>
+            )}
+
             <motion.button
               type="submit"
-              whileHover={{ scale: 1.02 }}
+              disabled={status === "sending" || status === "ok"}
+              whileHover={{ scale: status === "sending" ? 1 : 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="px-8 py-4 rounded-xl font-medium text-background cursor-pointer relative overflow-hidden group"
+              className="px-8 py-4 rounded-xl font-medium text-background cursor-pointer relative overflow-hidden group disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
                 background: "linear-gradient(135deg, var(--neon-cyan), var(--neon-purple))",
               }}
             >
-              <span className="relative z-10">Wyślij wiadomość →</span>
+              <span className="relative z-10">
+                {status === "sending" ? "Wysyłanie…" : status === "ok" ? "Wysłano ✓" : "Wyślij wiadomość →"}
+              </span>
               <motion.div
                 className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                 style={{

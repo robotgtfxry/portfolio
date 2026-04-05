@@ -4,19 +4,26 @@ Run: uvicorn main:app --reload --port 8000
 """
 
 import os
+import smtplib
+import logging
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import Any
 
 from fastapi import FastAPI, Request, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from db import (
     init_db, upsert_session, update_activity,
     record_section, record_event,
     get_active_sessions, get_recent_sessions, get_stats, get_session_detail,
     anonymise_old_ips, prune_old_sessions,
+    save_contact, mark_email_sent, get_contacts,
 )
 from geo import get_geo, extract_ip
+
+logger = logging.getLogger("portfolio")
 
 # ua-parser (pip: ua-parser)
 try:
@@ -38,8 +45,63 @@ except ImportError:
         return {"browser": None, "browser_version": None, "os": None, "device_type": "desktop"}
 
 
-ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "dev-admin-token-change-me")
+ADMIN_TOKEN     = os.getenv("ADMIN_TOKEN",     "dev-admin-token-change-me")
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+
+SMTP_SERVER   = os.getenv("SMTP_SERVER",   "mail.revdu.com")
+SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME", "cto@revdu.com")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "senegal123")
+NOTIFY_EMAIL  = os.getenv("NOTIFY_EMAIL",  "mijaksan@gmail.com")
+
+
+def send_notification_email(name: str, email: str, message: str) -> bool:
+    """Send contact notification via SMTP. Returns True on success."""
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"📩 Nowa wiadomość od {name} — Portfolio"
+        msg["From"]    = SMTP_USERNAME
+        msg["To"]      = NOTIFY_EMAIL
+        msg["Reply-To"] = email
+
+        plain = (
+            f"Imię:    {name}\n"
+            f"Email:   {email}\n\n"
+            f"Wiadomość:\n{message}\n\n"
+            f"---\nWysłane przez formularz kontaktowy portfolio."
+        )
+        html = f"""
+        <html><body style="font-family:sans-serif;background:#0a0a0a;color:#f0f0f0;padding:24px">
+          <h2 style="color:#00f0ff">📩 Nowa wiadomość z portfolio</h2>
+          <table style="border-collapse:collapse;width:100%;max-width:560px">
+            <tr><td style="padding:8px;color:#888;width:80px">Imię</td>
+                <td style="padding:8px;font-weight:bold">{name}</td></tr>
+            <tr><td style="padding:8px;color:#888">Email</td>
+                <td style="padding:8px">
+                  <a href="mailto:{email}" style="color:#00f0ff">{email}</a>
+                </td></tr>
+          </table>
+          <div style="margin-top:16px;padding:16px;background:#111;border-left:3px solid #b400ff;border-radius:4px">
+            <p style="margin:0;white-space:pre-wrap">{message}</p>
+          </div>
+          <p style="margin-top:24px;color:#444;font-size:12px">
+            Wysłane przez formularz kontaktowy portfolio.
+          </p>
+        </body></html>
+        """
+        msg.attach(MIMEText(plain, "plain", "utf-8"))
+        msg.attach(MIMEText(html,  "html",  "utf-8"))
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as smtp:
+            smtp.starttls()
+            smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+            smtp.sendmail(SMTP_USERNAME, NOTIFY_EMAIL, msg.as_string())
+
+        logger.info("Notification email sent for contact from %s", email)
+        return True
+    except Exception as exc:
+        logger.error("Failed to send notification email: %s", exc)
+        return False
 
 app = FastAPI(title="Portfolio Analytics", docs_url=None, redoc_url=None)
 
@@ -79,6 +141,12 @@ class TrackPayload(BaseModel):
     max_scroll: int | None = None
     sections: list[SectionPayload] = []
     events: list[EventPayload] = []
+
+class ContactPayload(BaseModel):
+    session_id: str | None = None
+    name: str
+    email: str
+    message: str
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -129,6 +197,25 @@ async def track(payload: TrackPayload, request: Request):
     return {"ok": True}
 
 
+@app.post("/contact")
+async def contact(payload: ContactPayload):
+    if not payload.name.strip() or not payload.email.strip() or not payload.message.strip():
+        raise HTTPException(status_code=422, detail="Wypełnij wszystkie pola")
+
+    contact_id = save_contact(
+        session_id=payload.session_id,
+        name=payload.name.strip(),
+        email=payload.email.strip(),
+        message=payload.message.strip(),
+    )
+
+    ok = send_notification_email(payload.name, payload.email, payload.message)
+    if ok:
+        mark_email_sent(contact_id)
+
+    return {"ok": True, "email_sent": ok}
+
+
 @app.get("/admin/overview")
 async def admin_overview(x_admin_token: str | None = Header(None), token: str | None = None):
     if (x_admin_token or token) != ADMIN_TOKEN:
@@ -138,9 +225,10 @@ async def admin_overview(x_admin_token: str | None = Header(None), token: str | 
     prune_old_sessions()
 
     return {
-        "active": get_active_sessions(),
-        "recent": get_recent_sessions(50),
-        "stats":  get_stats(),
+        "active":   get_active_sessions(),
+        "recent":   get_recent_sessions(50),
+        "stats":    get_stats(),
+        "contacts": get_contacts(50),
     }
 
 

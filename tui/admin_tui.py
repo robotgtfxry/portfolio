@@ -309,7 +309,7 @@ class AnalyticsApp(App):
         yield Header()
         with TabbedContent():
             # ── Tab 1: Live ───────────────────────────────────────────────
-            with TabPane("🟢 Na żywo", id="tab-live"):
+            with TabPane("Na żywo", id="tab-live"):
                 with Horizontal(classes="panel-row"):
                     with Vertical(classes="left-col"):
                         yield DataTable(id="active-table")
@@ -318,15 +318,23 @@ class AnalyticsApp(App):
                         yield CountryChart("Ładowanie…", id="country-chart")
 
             # ── Tab 2: Historia ───────────────────────────────────────────
-            with TabPane("📋 Historia", id="tab-history"):
+            with TabPane("Historia", id="tab-history"):
                 with Horizontal():
                     with Vertical(classes="left-col"):
                         yield DataTable(id="recent-table")
                     with Vertical(classes="right-col"):
                         yield DetailPanel(id="detail-panel")
 
-            # ── Tab 3: Statystyki ─────────────────────────────────────────
-            with TabPane("📊 Statystyki", id="tab-stats"):
+            # ── Tab 3: Kontakty ───────────────────────────────────────────
+            with TabPane("✉ Kontakty", id="tab-contacts"):
+                with Horizontal():
+                    with Vertical(classes="left-col"):
+                        yield DataTable(id="contacts-table")
+                    with Vertical(classes="right-col"):
+                        yield Static("[dim]Wybierz wiadomość…[/]", id="contact-detail")
+
+            # ── Tab 4: Statystyki ─────────────────────────────────────────
+            with TabPane("Statystyki", id="tab-stats"):
                 with Horizontal():
                     with Vertical(classes="left-col"):
                         yield SectionChart("Ładowanie…", id="section-chart")
@@ -337,14 +345,17 @@ class AnalyticsApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        # Configure tables
         active = self.query_one("#active-table", DataTable)
-        active.add_columns("Dev", "Kraj/IP", "Browser", "OS", "Czas", "Klik", "Scroll")
+        active.add_columns("Dev", "Kraj/IP", "Browser", "OS", "Czas", "Klik", "✉")
         active.cursor_type = "row"
 
         recent = self.query_one("#recent-table", DataTable)
-        recent.add_columns("Godz.", "Kraj", "Miasto", "Browser", "OS", "Czas", "Scroll", "●")
+        recent.add_columns("Godz.", "Kraj", "Miasto", "Browser", "OS", "Czas", "Scroll", "●", "✉")
         recent.cursor_type = "row"
+
+        contacts = self.query_one("#contacts-table", DataTable)
+        contacts.add_columns("Kiedy", "Imię", "Email", "Fragment wiad.", "📧")
+        contacts.cursor_type = "row"
 
         self.load_data()
         self.set_interval(REFRESH_S, self.load_data)
@@ -393,7 +404,8 @@ class AnalyticsApp(App):
         active_tbl = self.query_one("#active-table", DataTable)
         active_tbl.clear()
         for s in data.get("active", []):
-            icon = {"mobile": "📱", "tablet": "📋"}.get(s.get("device_type", ""), "🖥 ")
+            icon    = {"mobile": "📱", "tablet": "📋"}.get(s.get("device_type", ""), "🖥 ")
+            mail_mk = "[cyan]✉[/]" if s.get("has_contacted") else ""
             active_tbl.add_row(
                 icon,
                 trunc(s.get("country") or s.get("ip"), 14),
@@ -401,7 +413,7 @@ class AnalyticsApp(App):
                 trunc(s.get("os"), 12),
                 fmt_ms(s.get("total_time")),
                 str(s.get("page_clicks", 0)),
-                f"{s.get('max_scroll', 0)}%",
+                mail_mk,
                 key=s["session_id"],
             )
         if not data.get("active"):
@@ -411,7 +423,8 @@ class AnalyticsApp(App):
         recent_tbl = self.query_one("#recent-table", DataTable)
         recent_tbl.clear()
         for s in data.get("recent", []):
-            dot = "[green]●[/]" if s.get("is_active") else "[dim]○[/]"
+            dot     = "[green]●[/]" if s.get("is_active") else "[dim]○[/]"
+            mail_mk = "[cyan]✉[/]" if s.get("has_contacted") else ""
             recent_tbl.add_row(
                 fmt_time(s.get("created_at")),
                 trunc(s.get("country"), 10),
@@ -421,13 +434,50 @@ class AnalyticsApp(App):
                 fmt_ms(s.get("total_time")),
                 f"{s.get('max_scroll', 0)}%",
                 dot,
+                mail_mk,
                 key=s["session_id"],
             )
+
+        # Contacts table
+        contacts_tbl = self.query_one("#contacts-table", DataTable)
+        contacts_tbl.clear()
+        for c in data.get("contacts", []):
+            sent = "[green]✓[/]" if c.get("email_sent") else "[red]✗[/]"
+            contacts_tbl.add_row(
+                fmt_datetime(c.get("sent_at")),
+                trunc(c.get("name"), 16),
+                trunc(c.get("email"), 22),
+                trunc(c.get("message"), 30),
+                sent,
+                key=str(c["id"]),
+            )
+        if not data.get("contacts"):
+            contacts_tbl.add_row("—", "Brak wiadomości", "", "", "")
 
     @on(DataTable.RowSelected, "#recent-table")
     async def on_recent_selected(self, event: DataTable.RowSelected) -> None:
         session_id = str(event.row_key.value)
         await self._load_detail(session_id)
+
+    @on(DataTable.RowSelected, "#contacts-table")
+    def on_contact_selected(self, event: DataTable.RowSelected) -> None:
+        if not self._data:
+            return
+        contact_id = str(event.row_key.value)
+        contact = next(
+            (c for c in self._data.get("contacts", []) if str(c["id"]) == contact_id), None
+        )
+        if not contact:
+            return
+        sent = "[green]✓ Email wysłany[/]" if contact.get("email_sent") else "[red]✗ Email NIE wysłany[/]"
+        detail = (
+            f"[bold yellow]Data:[/]     {fmt_datetime(contact.get('sent_at'))}\n"
+            f"[bold yellow]Imię:[/]     {contact.get('name','—')}\n"
+            f"[bold yellow]Email:[/]    [cyan]{contact.get('email','—')}[/]\n"
+            f"[bold yellow]Email ok:[/] {sent}\n\n"
+            f"[bold]Wiadomość:[/]\n{contact.get('message','—')}"
+        )
+        self.query_one("#contact-detail", Static).update(detail)
 
     @work(exclusive=True, thread=False)
     async def _load_detail(self, session_id: str) -> None:
