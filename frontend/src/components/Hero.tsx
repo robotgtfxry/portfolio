@@ -176,7 +176,7 @@ export default function Hero() {
         <h1 className="text-5xl sm:text-7xl md:text-8xl font-bold tracking-tight mb-6">
           <SplitTextAnimation text="Cześć, jestem" className="block text-foreground" delay={0.3} />
           <SplitTextAnimation
-            text="Twoje Imię"
+            text="Michał"
             className="block gradient-text mt-2"
             delay={0.8}
           />
