@@ -105,13 +105,15 @@ export default function Tracker() {
   const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const initialized = useRef(false);
 
+  const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:8000';
+
   function send(payload: Record<string, unknown>) {
-    // Use sendBeacon when available for reliability during page unload
     const data = JSON.stringify(payload);
+    const url = `${BACKEND}/track`;
     if (navigator.sendBeacon) {
-      navigator.sendBeacon('/api/track', new Blob([data], { type: 'application/json' }));
+      navigator.sendBeacon(url, new Blob([data], { type: 'application/json' }));
     } else {
-      fetch('/api/track', { method: 'POST', body: data, headers: { 'Content-Type': 'application/json' }, keepalive: true }).catch(() => {});
+      fetch(url, { method: 'POST', body: data, headers: { 'Content-Type': 'application/json' }, keepalive: true }).catch(() => {});
     }
   }
 
