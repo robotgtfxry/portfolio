@@ -3,9 +3,11 @@ Portfolio Analytics — Python backend
 Run: uvicorn main:app --reload --port 8000
 """
 
+import asyncio
+import logging
 import os
 import smtplib
-import logging
+from concurrent.futures import ThreadPoolExecutor
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
@@ -23,6 +25,7 @@ from db import (
 )
 from geo import get_geo, extract_ip
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("portfolio")
 
 # ua-parser (pip: ua-parser)
@@ -55,52 +58,60 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "senegal123")
 NOTIFY_EMAIL  = os.getenv("NOTIFY_EMAIL",  "mijaksan@gmail.com")
 
 
-def send_notification_email(name: str, email: str, message: str) -> bool:
-    """Send contact notification via SMTP. Returns True on success."""
+_smtp_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="smtp")
+
+
+def _smtp_send(name: str, email: str, message: str) -> bool:
+    """Blocking SMTP call — runs in a thread pool, never in the event loop."""
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Nowa wiadomosc od {name} - Portfolio"
+    msg["From"]    = SMTP_USERNAME
+    msg["To"]      = NOTIFY_EMAIL
+    msg["Reply-To"] = email
+
+    plain = (
+        f"Imie:    {name}\n"
+        f"Email:   {email}\n\n"
+        f"Wiadomosc:\n{message}\n\n"
+        f"---\nWyslane przez formularz kontaktowy portfolio."
+    )
+    html = f"""<html><body style="font-family:sans-serif;padding:24px">
+  <h2 style="color:#00aaff">Nowa wiadomosc z portfolio</h2>
+  <table>
+    <tr><td style="color:#888;width:80px">Imie</td>
+        <td><b>{name}</b></td></tr>
+    <tr><td style="color:#888">Email</td>
+        <td><a href="mailto:{email}">{email}</a></td></tr>
+  </table>
+  <div style="margin-top:16px;padding:16px;border-left:3px solid #aa00ff">
+    <p style="white-space:pre-wrap">{message}</p>
+  </div>
+</body></html>"""
+
+    msg.attach(MIMEText(plain, "plain", "utf-8"))
+    msg.attach(MIMEText(html,  "html",  "utf-8"))
+
+    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=15) as smtp:
+        smtp.set_debuglevel(0)
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.ehlo()
+        smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+        refused = smtp.sendmail(SMTP_USERNAME, [NOTIFY_EMAIL], msg.as_string())
+        if refused:
+            raise RuntimeError(f"Addresses refused: {refused}")
+    return True
+
+
+async def send_notification_email(name: str, email: str, message: str) -> bool:
+    """Async wrapper — offloads blocking SMTP to thread pool."""
+    loop = asyncio.get_event_loop()
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"📩 Nowa wiadomość od {name} — Portfolio"
-        msg["From"]    = SMTP_USERNAME
-        msg["To"]      = NOTIFY_EMAIL
-        msg["Reply-To"] = email
-
-        plain = (
-            f"Imię:    {name}\n"
-            f"Email:   {email}\n\n"
-            f"Wiadomość:\n{message}\n\n"
-            f"---\nWysłane przez formularz kontaktowy portfolio."
-        )
-        html = f"""
-        <html><body style="font-family:sans-serif;background:#0a0a0a;color:#f0f0f0;padding:24px">
-          <h2 style="color:#00f0ff">📩 Nowa wiadomość z portfolio</h2>
-          <table style="border-collapse:collapse;width:100%;max-width:560px">
-            <tr><td style="padding:8px;color:#888;width:80px">Imię</td>
-                <td style="padding:8px;font-weight:bold">{name}</td></tr>
-            <tr><td style="padding:8px;color:#888">Email</td>
-                <td style="padding:8px">
-                  <a href="mailto:{email}" style="color:#00f0ff">{email}</a>
-                </td></tr>
-          </table>
-          <div style="margin-top:16px;padding:16px;background:#111;border-left:3px solid #b400ff;border-radius:4px">
-            <p style="margin:0;white-space:pre-wrap">{message}</p>
-          </div>
-          <p style="margin-top:24px;color:#444;font-size:12px">
-            Wysłane przez formularz kontaktowy portfolio.
-          </p>
-        </body></html>
-        """
-        msg.attach(MIMEText(plain, "plain", "utf-8"))
-        msg.attach(MIMEText(html,  "html",  "utf-8"))
-
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as smtp:
-            smtp.starttls()
-            smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
-            smtp.sendmail(SMTP_USERNAME, NOTIFY_EMAIL, msg.as_string())
-
-        logger.info("Notification email sent for contact from %s", email)
+        await loop.run_in_executor(_smtp_executor, _smtp_send, name, email, message)
+        logger.info("Email wyslany do %s (nadawca: %s)", NOTIFY_EMAIL, email)
         return True
     except Exception as exc:
-        logger.error("Failed to send notification email: %s", exc)
+        logger.error("Blad wysylania emaila: %s: %s", type(exc).__name__, exc)
         return False
 
 app = FastAPI(title="Portfolio Analytics", docs_url=None, redoc_url=None)
@@ -209,7 +220,7 @@ async def contact(payload: ContactPayload):
         message=payload.message.strip(),
     )
 
-    ok = send_notification_email(payload.name, payload.email, payload.message)
+    ok = await send_notification_email(payload.name, payload.email, payload.message)
     if ok:
         mark_email_sent(contact_id)
 
