@@ -92,6 +92,7 @@ const skillCategories: Category[] = [
       { name: "Linux",  icon: "🐧" },
       { name: "VS Code",icon: "💙" },
       { name: "Figma",  icon: "🎨" },
+      { name: "SEO",    icon: "🔍" },
     ],
   },
 ];

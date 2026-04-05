@@ -67,13 +67,36 @@ function simpleHash(str: string): string {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
 }
 
+// ── UUID generator (works on HTTP, HTTPS and localhost) ───────────────────────
+
+function generateUUID(): string {
+  // Prefer crypto.randomUUID() — available on HTTPS and localhost
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try { return crypto.randomUUID(); } catch { /* fall through */ }
+  }
+  // Fallback: crypto.getRandomValues — works on HTTP too (no secure-context requirement)
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant bits
+    const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+  }
+  // Last-resort: Math.random (non-cryptographic but always available)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
 // ── Session ID ────────────────────────────────────────────────────────────────
 
 function getSessionId(): string {
   const key = '_pt_sid';
   let sid = sessionStorage.getItem(key);
   if (!sid) {
-    sid = crypto.randomUUID();
+    sid = generateUUID();
     sessionStorage.setItem(key, sid);
   }
   return sid;

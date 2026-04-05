@@ -80,13 +80,14 @@ export default function Navigation() {
       initial={{ y: 100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 1.5, duration: 0.8, ease: "easeOut" }}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+      /* max-w keeps pill from overflowing the viewport on narrow screens */
+      className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-12px)]"
     >
       {/* Single pill that grows when at bottom */}
       <motion.div
         layout
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="flex items-center gap-1 px-4 py-3 rounded-2xl bg-[#111]/80 backdrop-blur-xl border border-white/5"
+        className="flex items-center gap-0.5 sm:gap-1 px-2 sm:px-4 py-2 sm:py-3 rounded-2xl bg-[#111]/80 backdrop-blur-xl border border-white/5"
       >
         {/* Nav icons */}
         {navItems.map((item, index) => {
@@ -120,7 +121,7 @@ export default function Navigation() {
                   y: isHovered ? -4 : 0,
                 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                className={`w-10 h-10 flex items-center justify-center rounded-xl text-lg transition-colors duration-300 cursor-pointer ${
+                className={`w-7 h-7 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl text-sm sm:text-lg transition-colors duration-300 cursor-pointer ${
                   isActive
                     ? "bg-neon-cyan/10 text-neon-cyan"
                     : "text-white/40 hover:text-white/80 hover:bg-white/5"
@@ -149,10 +150,10 @@ export default function Navigation() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ type: "spring", stiffness: 280, damping: 28 }}
-              className="flex items-center gap-1"
+              className="flex items-center gap-0.5 sm:gap-1"
             >
               {/* Divider */}
-              <div className="w-px h-6 bg-white/10 mx-1 shrink-0" />
+              <div className="w-px h-5 sm:h-6 bg-white/10 mx-0.5 sm:mx-1 shrink-0" />
 
               {socials.map((s) => (
                 <motion.a
@@ -166,7 +167,7 @@ export default function Navigation() {
                   exit={{ scale: 0.6, opacity: 0 }}
                   whileHover={{ scale: 1.2, y: -3 }}
                   transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl text-white/40 hover:text-neon-cyan hover:bg-neon-cyan/10 transition-colors duration-200 shrink-0"
+                  className="w-7 h-7 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl text-white/40 hover:text-neon-cyan hover:bg-neon-cyan/10 transition-colors duration-200 shrink-0"
                 >
                   {s.icon}
                 </motion.a>

@@ -10,6 +10,7 @@ type Item = FolderItem & {
   status: "Ukończony" | "W trakcie";
   details: string;
   category: string;
+  url?: string;
 };
 
 const items: Item[] = [
@@ -73,11 +74,23 @@ const items: Item[] = [
     tech: ["PLC", "Python", "Sensory"],
     status: "W trakcie",
   },
+  {
+    id: "stratostem",
+    label: "StratoSTEM",
+    icon: "🎈",
+    category: "Kosmonautyka",
+    description: "Program edukacyjny PCINN + Boeing — budowa balonów stratosferycznych, eksperymenty naukowe związane z przestrzenią kosmiczną.",
+    details: "Program Podkarpackiego Centrum Innowacji we współpracy z Boeing. Warsztaty dla uczniów szkół średnich z Podkarpacia — projektowanie i budowa balonów stratosferycznych, przygotowanie ładunków naukowych oraz eksperymenty badawcze wyniesione na krawędź stratosfery.",
+    tech: ["Balony stratosferyczne", "Boeing", "PCINN", "Kosmonautyka", "STEM"],
+    status: "W trakcie",
+    url: "https://event.pcinn.org/stratostem",
+  },
 ];
 
 const categoryColor: Record<string, string> = {
-  Robotyka:   "text-neon-cyan border-neon-cyan/20 bg-neon-cyan/10",
-  Inżynieria: "text-neon-purple border-neon-purple/20 bg-neon-purple/10",
+  Robotyka:     "text-neon-cyan border-neon-cyan/20 bg-neon-cyan/10",
+  Inżynieria:   "text-neon-purple border-neon-purple/20 bg-neon-purple/10",
+  Kosmonautyka: "text-amber-400 border-amber-400/20 bg-amber-400/10",
 };
 
 // Special "Zobacz więcej" paper shown as 3rd slot in folder
@@ -118,7 +131,7 @@ export default function Robotics() {
   };
 
   return (
-    <section id="robotics" className="relative py-32 px-4">
+    <section id="robotics" className="relative py-24 sm:py-32 px-4 overflow-x-hidden">
       <div
         className="absolute top-1/2 left-0 w-96 h-96 rounded-full opacity-5 blur-[150px] pointer-events-none"
         style={{ background: "var(--neon-cyan)" }}
@@ -160,16 +173,18 @@ export default function Robotics() {
           initial={{ opacity: 0, y: 40 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ delay: 0.45, duration: 0.6 }}
-          className="pt-36"
+          className="pt-24 sm:pt-36"
         >
           <LayoutGroup>
-            <div className="flex items-start gap-12">
+            {/* Mobile: column (folder on top, panel below). Desktop: row (folder left, panel right) */}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-8 sm:gap-12">
 
-              {/* ── Left column: folder ─────────────────────────────────── */}
+              {/* ── Folder column ────────────────────────────────────────── */}
               <motion.div
                 layout
                 transition={{ type: "spring", stiffness: 260, damping: 28 }}
-                className={`flex flex-col items-center gap-6 shrink-0 ${!hasSelection ? "mx-auto" : ""}`}
+                /* Mobile: always centered. Desktop: mx-auto when no panel, snap left when panel visible */
+                className={`flex flex-col items-center gap-6 shrink-0 mx-auto ${hasSelection ? "sm:mx-0" : ""}`}
               >
                 <Folder
                   color="#00f0ff"
@@ -217,26 +232,27 @@ export default function Robotics() {
                   <motion.div
                     key="panel"
                     layout
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 30 }}
+                    /* Mobile: slide up. Desktop: slide in from right */
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 12 }}
                     transition={{ type: "spring", stiffness: 260, damping: 28, delay: 0.05 }}
-                    className="flex-1 min-w-0 relative rounded-2xl border border-neon-cyan/25 bg-neon-cyan/5 p-7 overflow-hidden"
+                    className="w-full sm:flex-1 sm:min-w-0 relative rounded-2xl border border-neon-cyan/25 bg-neon-cyan/5 p-4 sm:p-7 overflow-hidden"
                   >
                     <div
                       className="absolute inset-0 pointer-events-none rounded-2xl"
                       style={{ background: "radial-gradient(400px circle at 50% -40px, rgba(0,240,255,0.07), transparent 70%)" }}
                     />
 
-                    <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
+                    <div className="flex items-start justify-between gap-3 mb-5 flex-wrap">
                       <div className="flex items-center gap-3">
-                        <span className="text-3xl">{selected.icon}</span>
+                        <span className="text-2xl sm:text-3xl">{selected.icon}</span>
                         <div>
-                          <h3 className="text-xl font-bold">{selected.label}</h3>
+                          <h3 className="text-lg sm:text-xl font-bold">{selected.label}</h3>
                           <span className="font-mono text-xs text-white/30">{selected.id}.md</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className={`px-2 py-1 rounded-md text-[10px] font-mono font-bold border ${categoryColor[selected.category]}`}>
                           {selected.category}
                         </span>
@@ -251,16 +267,27 @@ export default function Robotics() {
                     </div>
 
                     <p className="text-white/60 text-sm leading-relaxed mb-4">{selected.description}</p>
-                    <div className="w-full h-px bg-white/8 my-5" />
-                    <p className="text-white/40 text-sm leading-relaxed mb-6">{selected.details}</p>
+                    <div className="w-full h-px bg-white/8 my-4 sm:my-5" />
+                    <p className="text-white/40 text-sm leading-relaxed mb-5 sm:mb-6">{selected.details}</p>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 mb-4">
                       {selected.tech.map((t) => (
                         <span key={t} className="px-2 py-1 text-xs rounded-md bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/15">
                           {t}
                         </span>
                       ))}
                     </div>
+
+                    {selected.url && (
+                      <a
+                        href={selected.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-mono text-amber-400/70 hover:text-amber-400 border border-amber-400/20 hover:border-amber-400/40 bg-amber-400/5 hover:bg-amber-400/10 px-3 py-1.5 rounded-lg transition-all duration-200"
+                      >
+                        🔗 {selected.url.replace("https://", "")} ↗
+                      </a>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -287,7 +314,8 @@ export default function Robotics() {
               exit={{ opacity: 0, scale: 0.92, y: 20 }}
               transition={{ type: "spring", stiffness: 300, damping: 28 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-md mx-4 rounded-2xl border border-white/10 bg-[#111]/95 backdrop-blur-xl p-6 shadow-2xl"
+              className="relative w-full max-w-md mx-3 rounded-2xl border border-white/10 bg-[#111]/95 backdrop-blur-xl p-4 sm:p-6 shadow-2xl"
+              style={{ maxHeight: "85vh", overflowY: "auto" }}
             >
               {/* Glow */}
               <div
