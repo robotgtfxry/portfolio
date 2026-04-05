@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
+import Image from "next/image";
 
 function BlurText({ text, className, delay = 0 }: { text: string; className?: string; delay?: number }) {
   const ref = useRef(null);
@@ -101,11 +102,14 @@ export default function About() {
             className="relative"
           >
             <div className="relative aspect-square rounded-2xl overflow-hidden electric-border">
-              <div className="absolute inset-[1px] rounded-2xl bg-card-bg flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-6xl mb-4 opacity-20">📷</div>
-                  <p className="text-white/20 font-mono text-sm">Twoje zdjęcie tutaj</p>
-                </div>
+              <div className="absolute inset-[1px] rounded-2xl overflow-hidden">
+                <Image
+                  src="/profilowe.jpg"
+                  alt="Zdjęcie profilowe"
+                  fill
+                  className="object-cover object-center"
+                  priority
+                />
               </div>
             </div>
 
