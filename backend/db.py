@@ -223,6 +223,13 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
 def save_contact(session_id: str | None, name: str, email: str, message: str) -> int:
     now = int(time.time() * 1000)
     with get_conn() as conn:
+        # Validate session_id — set to NULL if it doesn't exist in sessions
+        if session_id:
+            exists = conn.execute(
+                "SELECT 1 FROM sessions WHERE session_id = ?", (session_id,)
+            ).fetchone()
+            if not exists:
+                session_id = None
         cur = conn.execute(
             "INSERT INTO contacts (session_id, name, email, message, sent_at) VALUES (?,?,?,?,?)",
             (session_id, name, email, message, now),
