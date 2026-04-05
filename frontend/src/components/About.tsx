@@ -53,6 +53,28 @@ export default function About() {
               <BlurText text="Pasja do technologii i tworzenia" />
             </h2>
 
+            {/* Role badges */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="flex flex-wrap gap-2 mb-6"
+            >
+              <a
+                href="https://revdu.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-neon-cyan/30 bg-neon-cyan/5 text-neon-cyan text-sm font-mono hover:bg-neon-cyan/10 transition-colors"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse" />
+                Co-Founder @ Revdu
+              </a>
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-neon-purple/30 bg-neon-purple/5 text-neon-purple text-sm font-mono">
+                <span>🏆</span>
+                Hackathon Mentor
+              </span>
+            </motion.div>
+
             <div className="space-y-6 text-white/60 text-lg leading-relaxed">
               <motion.p
                 initial={{ opacity: 0, y: 20 }}

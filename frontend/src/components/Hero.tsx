@@ -98,6 +98,42 @@ function DecryptedText({ text, className }: { text: string; className?: string }
   );
 }
 
+function FuzzyText({ text, className }: { text: string; className?: string }) {
+  const [displayText, setDisplayText] = useState(text);
+  const [isHovered, setIsHovered] = useState(false);
+  const chars = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+
+  useEffect(() => {
+    if (!isHovered) {
+      setDisplayText(text);
+      return;
+    }
+    const interval = setInterval(() => {
+      setDisplayText(
+        text
+          .split("")
+          .map((char) => {
+            if (char === " ") return " ";
+            if (Math.random() > 0.7) return chars[Math.floor(Math.random() * chars.length)];
+            return char;
+          })
+          .join("")
+      );
+    }, 50);
+    return () => clearInterval(interval);
+  }, [isHovered, text]);
+
+  return (
+    <span
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={`cursor-default ${className ?? ""}`}
+    >
+      {displayText}
+    </span>
+  );
+}
+
 function SplitTextAnimation({ text, className, delay = 0 }: { text: string; className?: string; delay?: number }) {
   return (
     <span className={className}>
@@ -173,14 +209,15 @@ export default function Hero() {
           </span>
         </motion.div>
 
-        <h1 className="text-5xl sm:text-7xl md:text-8xl font-bold tracking-tight mb-6">
-          <SplitTextAnimation text="Cześć, jestem" className="block text-foreground" delay={0.3} />
-          <SplitTextAnimation
-            text="Michał"
-            className="block gradient-text mt-2"
-            delay={0.8}
-          />
-        </h1>
+        <motion.h1
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.7 }}
+          className="text-5xl sm:text-7xl md:text-8xl font-bold tracking-tight mb-6"
+        >
+          <FuzzyText text="Cześć, jestem" className="block text-foreground" />
+          <FuzzyText text="Michał" className="block gradient-text mt-2" />
+        </motion.h1>
 
         <motion.div
           initial={{ opacity: 0 }}
@@ -219,25 +256,6 @@ export default function Hero() {
           </motion.a>
         </motion.div>
 
-        {/* Scroll indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 3 }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2"
-        >
-          <motion.div
-            animate={{ y: [0, 10, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="w-6 h-10 rounded-full border-2 border-white/20 flex justify-center pt-2"
-          >
-            <motion.div
-              animate={{ opacity: [0.2, 1, 0.2], y: [0, 6, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="w-1 h-2 rounded-full bg-neon-cyan"
-            />
-          </motion.div>
-        </motion.div>
       </div>
     </section>
   );
