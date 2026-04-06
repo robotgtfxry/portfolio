@@ -4,16 +4,20 @@ Run: uvicorn main:app --reload --port 8000
 """
 
 import asyncio
+import hashlib
 import logging
 import os
+import secrets
 import smtplib
 from concurrent.futures import ThreadPoolExecutor
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request, Header, HTTPException
+from fastapi import FastAPI, Request, Header, HTTPException, UploadFile, File, Cookie
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, EmailStr
 
 from db import (
@@ -50,6 +54,13 @@ except ImportError:
 
 ADMIN_TOKEN     = os.getenv("ADMIN_TOKEN",     "dev-admin-token-change-me")
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+
+DRIVE_PASSWORD  = os.getenv("DRIVE_PASSWORD", "senegal123")
+DRIVE_MAX_BYTES = 15 * 1024 * 1024 * 1024  # 15 GB
+DRIVE_DIR       = Path(__file__).parent / "drive_storage"
+DRIVE_DIR.mkdir(exist_ok=True)
+
+_drive_tokens: set[str] = set()
 
 SMTP_SERVER   = os.getenv("SMTP_SERVER",   "mail.revdu.com")
 SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
@@ -119,8 +130,9 @@ app = FastAPI(title="Portfolio Analytics", docs_url=None, redoc_url=None)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_ORIGIN, "http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_methods=["POST", "GET", "OPTIONS"],
+    allow_methods=["POST", "GET", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 
 init_db()
@@ -253,3 +265,81 @@ async def admin_session(session_id: str, x_admin_token: str | None = Header(None
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# ── Drive ────────────────────────────────────────────────────────────────────
+
+def _drive_usage() -> int:
+    return sum(f.stat().st_size for f in DRIVE_DIR.iterdir() if f.is_file())
+
+
+def _verify_drive_token(token: str | None):
+    if not token or token not in _drive_tokens:
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+
+class DriveAuth(BaseModel):
+    password: str
+
+
+@app.post("/drive/auth")
+async def drive_auth(body: DriveAuth):
+    if body.password != DRIVE_PASSWORD:
+        raise HTTPException(status_code=401, detail="wrong password")
+    token = secrets.token_hex(32)
+    _drive_tokens.add(token)
+    return {"token": token}
+
+
+@app.get("/drive/files")
+async def drive_files(drive_token: str | None = Header(None)):
+    _verify_drive_token(drive_token)
+    files = []
+    for f in sorted(DRIVE_DIR.iterdir()):
+        if f.is_file():
+            stat = f.stat()
+            files.append({
+                "name": f.name,
+                "size": stat.st_size,
+                "modified": stat.st_mtime,
+            })
+    return {"files": files, "usage": _drive_usage(), "max": DRIVE_MAX_BYTES}
+
+
+@app.post("/drive/upload")
+async def drive_upload(file: UploadFile = File(...), drive_token: str | None = Header(None)):
+    _verify_drive_token(drive_token)
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="no filename")
+
+    safe_name = Path(file.filename).name
+    if not safe_name or safe_name.startswith("."):
+        raise HTTPException(status_code=400, detail="invalid filename")
+
+    content = await file.read()
+    if _drive_usage() + len(content) > DRIVE_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="disk limit exceeded (15 GB)")
+
+    (DRIVE_DIR / safe_name).write_bytes(content)
+    return {"ok": True, "name": safe_name, "size": len(content)}
+
+
+@app.get("/drive/download/{filename:path}")
+async def drive_download(filename: str, drive_token: str | None = Header(None)):
+    _verify_drive_token(drive_token)
+    safe_name = Path(filename).name
+    path = DRIVE_DIR / safe_name
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="file not found")
+    return FileResponse(path, filename=safe_name)
+
+
+@app.delete("/drive/delete/{filename:path}")
+async def drive_delete(filename: str, drive_token: str | None = Header(None)):
+    _verify_drive_token(drive_token)
+    safe_name = Path(filename).name
+    path = DRIVE_DIR / safe_name
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="file not found")
+    path.unlink()
+    return {"ok": True}

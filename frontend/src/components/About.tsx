@@ -67,10 +67,9 @@ export default function About() {
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-neon-cyan/30 bg-neon-cyan/5 text-neon-cyan text-sm font-mono hover:bg-neon-cyan/10 transition-colors"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse" />
-                Co-Founder @ Revdu
+                CTO @ Revdu
               </a>
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-neon-purple/30 bg-neon-purple/5 text-neon-purple text-sm font-mono">
-                <span>🏆</span>
                 Hackathon Mentor
               </span>
             </motion.div>

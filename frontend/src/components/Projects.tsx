@@ -335,7 +335,7 @@ export default function Projects() {
           className="mb-4"
         >
           <span className="text-neon-cyan font-mono text-sm tracking-widest uppercase">
-            05 — Projekty Software
+            03 — Projekty Software
           </span>
         </motion.div>
 

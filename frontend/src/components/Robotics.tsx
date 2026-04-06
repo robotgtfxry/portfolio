@@ -11,18 +11,19 @@ type Item = FolderItem & {
   details: string;
   category: string;
   url?: string;
+  readMoreUrl?: string;
 };
 
 const items: Item[] = [
   {
-    id: "robot-1",
-    label: "Robot #1",
+    id: "vector",
+    label: "VECTOR",
     icon: "🤖",
     category: "Robotyka",
-    description: "Opis pierwszego robota — co robi, jakie technologie wykorzystuje, co było największym wyzwaniem.",
-    details: "Szczegółowy opis budowy: mechanika, elektronika, oprogramowanie. Jak działają sensory, jak steruje się napędami, jakie problemy napotkałem i jak je rozwiązałem.",
-    tech: ["Arduino", "C++", "Sensory", "3D Print"],
-    status: "Ukończony",
+    description: "Robot z ramieniem robotycznym — projekt budowany od podstaw z wlasnym PCB, konstrukcja mechaniczna i elektronika zaprojektowane samodzielnie.",
+    details: "VECTOR to robot z ramieniem robotycznym, w ktorym kazdy element powstal od zera. Wlasna plytka PCB zaprojektowana i wytrawiona przez nas, konstrukcja mechaniczna modelowana w CAD i drukowana 3D. Sterowanie oparte na mikrokontrolerze z dedykowanym firmware. Projekt w trakcie realizacji.",
+    tech: ["PCB Design", "CAD", "3D Print", "C++", "Elektronika"],
+    status: "W trakcie",
   },
   {
     id: "robot-2",
@@ -146,7 +147,7 @@ export default function Robotics() {
           className="mb-4"
         >
           <span className="text-neon-cyan font-mono text-sm tracking-widest uppercase">
-            03 — Hardware
+            05 — Hardware
           </span>
         </motion.div>
 
@@ -278,16 +279,29 @@ export default function Robotics() {
                       ))}
                     </div>
 
-                    {selected.url && (
-                      <a
-                        href={selected.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-mono text-amber-400/70 hover:text-amber-400 border border-amber-400/20 hover:border-amber-400/40 bg-amber-400/5 hover:bg-amber-400/10 px-3 py-1.5 rounded-lg transition-all duration-200"
-                      >
-                        🔗 {selected.url.replace("https://", "")} ↗
-                      </a>
-                    )}
+                    <div className="flex flex-wrap gap-3">
+                      {selected.url && (
+                        <a
+                          href={selected.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-mono text-amber-400/70 hover:text-amber-400 border border-amber-400/20 hover:border-amber-400/40 bg-amber-400/5 hover:bg-amber-400/10 px-3 py-1.5 rounded-lg transition-all duration-200"
+                        >
+                          {selected.url.replace("https://", "")} ↗
+                        </a>
+                      )}
+
+                      {selected.readMoreUrl && (
+                        <a
+                          href={selected.readMoreUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-mono text-neon-cyan/70 hover:text-neon-cyan border border-neon-cyan/20 hover:border-neon-cyan/40 bg-neon-cyan/5 hover:bg-neon-cyan/10 px-3 py-1.5 rounded-lg transition-all duration-200"
+                        >
+                          Czytaj wiecej →
+                        </a>
+                      )}
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
