@@ -371,7 +371,7 @@ function TimelineEntry({
 export default function Experience() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const [timelineOpen, setTimelineOpen] = useState(true);
+  const [showAll, setShowAll] = useState(false);
 
   return (
     <section id="experience" className="relative py-32 px-4">
@@ -389,34 +389,16 @@ export default function Experience() {
           </span>
         </motion.div>
 
-        {/* Title + toggle button */}
-        <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
-          <h2 className="text-4xl sm:text-5xl font-bold">
-            <motion.span
-              initial={{ opacity: 0, y: 20 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: 0.2 }}
-            >
-              Role & <span className="gradient-text">mentoring</span>
-            </motion.span>
-          </h2>
-
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={isInView ? { opacity: 1 } : {}}
-            transition={{ delay: 0.4 }}
-            onClick={() => setTimelineOpen((v) => !v)}
-            className="mt-2 flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 hover:border-white/20 text-white/50 hover:text-white text-sm font-mono transition-all duration-200 shrink-0"
+        {/* Title */}
+        <h2 className="text-4xl sm:text-5xl font-bold mb-6">
+          <motion.span
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ delay: 0.2 }}
           >
-            <motion.span
-              animate={{ rotate: timelineOpen ? 0 : -90 }}
-              transition={{ duration: 0.25 }}
-            >
-              ▼
-            </motion.span>
-            {timelineOpen ? "Zwiń" : "Rozwiń"}
-          </motion.button>
-        </div>
+            Role & <span className="gradient-text">mentoring</span>
+          </motion.span>
+        </h2>
 
         <motion.p
           initial={{ opacity: 0, y: 20 }}
@@ -427,28 +409,79 @@ export default function Experience() {
           Buduję produkty jako CTO i dzielę się wiedzą jako mentor na hackathonach.
         </motion.p>
 
-        {/* Unified timeline — collapsible */}
-        <AnimatePresence initial={false}>
-          {timelineOpen && (
+        {/* Timeline — collapsed: first item with blur fade, expanded: all */}
+        <div className="relative">
+          {/* First item — clickable to expand when collapsed */}
+          <div
+            className={`relative ${!showAll ? "max-h-[200px] overflow-hidden cursor-pointer" : ""}`}
+            onClick={() => !showAll && setShowAll(true)}
+          >
+            <TimelineEntry
+              key={`${timeline[0].org}-0`}
+              item={timeline[0]}
+              index={0}
+              isInView={isInView}
+            />
+
+            {/* Blur/fade overlay when collapsed */}
+            {!showAll && (
+              <div
+                className="absolute bottom-0 left-0 right-0 h-40 flex items-end justify-center pb-3"
+                style={{
+                  background: "linear-gradient(to bottom, transparent 0%, rgba(10,10,10,0.3) 30%, rgba(10,10,10,0.7) 60%, var(--background) 100%)",
+                  backdropFilter: "blur(3px)",
+                  WebkitBackdropFilter: "blur(3px)",
+                  maskImage: "linear-gradient(to bottom, transparent 0%, black 25%)",
+                  WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 25%)",
+                }}
+              >
+                <span className="text-white/40 text-xs font-mono">
+                  kliknij aby rozwinac
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Rest of timeline — animated */}
+          <AnimatePresence initial={false}>
+            {showAll && (
+              <motion.div
+                key="rest"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.4, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+                {timeline.slice(1).map((item, index) => (
+                  <TimelineEntry
+                    key={`${item.org}-${index + 1}`}
+                    item={item}
+                    index={index + 1}
+                    isInView={isInView}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Collapse button — only when expanded */}
+          {showAll && (
             <motion.div
-              key="timeline"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
-              className="overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex justify-center mt-4"
             >
-              {timeline.map((item, index) => (
-                <TimelineEntry
-                  key={`${item.org}-${index}`}
-                  item={item}
-                  index={index}
-                  isInView={isInView}
-                />
-              ))}
+              <button
+                onClick={() => setShowAll(false)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 hover:border-white/20 text-white/50 hover:text-white text-sm font-mono transition-all duration-200 cursor-pointer"
+              >
+                <motion.span animate={{ rotate: 180 }}>▼</motion.span>
+                Zwin
+              </button>
             </motion.div>
           )}
-        </AnimatePresence>
+        </div>
 
       </div>
     </section>
