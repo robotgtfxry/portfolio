@@ -47,6 +47,12 @@ const skillCategories: Category[] = [
     colorRgb: "255,0,128",
     skills: ["Git", "Docker", "Linux", "VS Code", "SEO"],
   },
+  {
+    title: "Płatności",
+    colorVar: "var(--neon-cyan)",
+    colorRgb: "0,240,255",
+    skills: ["Stripe", "PayU", "Przelewy24", "Webhooks", "PCI DSS"],
+  },
 ];
 
 // ── Category row ──────────────────────────────────────────────────────────
