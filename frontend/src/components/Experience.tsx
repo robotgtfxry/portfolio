@@ -66,8 +66,8 @@ const timeline: TimelineItem[] = [
     color: "purple",
     certified: true,
     collapsible: true,
-    certificateUrl: "/certificates/hack-carpatia-2026.pdf",
-    certificateReady: false,
+    certificateUrl: "/certificates/hackcarpatia_mielec.pdf",
+    certificateReady: true,
   },
   {
     type: "mentoring",

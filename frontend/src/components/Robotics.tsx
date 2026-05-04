@@ -2,7 +2,9 @@
 
 import { useRef, useState } from "react";
 import { motion, useInView, AnimatePresence, LayoutGroup } from "framer-motion";
+import Link from "next/link";
 import Folder, { FolderItem } from "./Folder";
+import { allProjects, categoryColors } from "@/data/projects";
 
 type Item = FolderItem & {
   description: string;
@@ -12,87 +14,26 @@ type Item = FolderItem & {
   category: string;
   url?: string;
   readMoreUrl?: string;
+  featured?: boolean;
 };
 
-const items: Item[] = [
-  {
-    id: "vector",
-    label: "VECTOR",
-    icon: "🤖",
-    category: "Robotyka",
-    description: "Robot z ramieniem robotycznym — projekt budowany od podstaw z wlasnym PCB, konstrukcja mechaniczna i elektronika zaprojektowane samodzielnie.",
-    details: "VECTOR to robot z ramieniem robotycznym, w ktorym kazdy element powstal od zera. Wlasna plytka PCB zaprojektowana i wytrawiona przez nas, konstrukcja mechaniczna modelowana w CAD i drukowana 3D. Sterowanie oparte na mikrokontrolerze z dedykowanym firmware. Projekt w trakcie realizacji.",
-    tech: ["PCB Design", "CAD", "3D Print", "C++", "Elektronika"],
-    status: "W trakcie",
-  },
-  {
-    id: "robot-2",
-    label: "Robot #2",
-    icon: "🦾",
-    category: "Robotyka",
-    description: "Opis drugiego robota — autonomiczna nawigacja, sterowanie, komunikacja.",
-    details: "Robot z autonomiczną nawigacją opartą na LIDARze i kamerze. Implementacja SLAM, planowanie ścieżki, unikanie przeszkód.",
-    tech: ["Raspberry Pi", "Python", "ROS", "LIDAR"],
-    status: "Ukończony",
-  },
-  {
-    id: "robot-3",
-    label: "Robot #3",
-    icon: "⚙️",
-    category: "Robotyka",
-    description: "Opis trzeciego robota — najnowszy projekt, aktualnie w budowie.",
-    details: "Projekt bazuje na ESP32, własnej płytce PCB i zaawansowanym sterowaniu silnikami. Model 3D w CAD, testy na prototypie.",
-    tech: ["ESP32", "MicroPython", "PCB Design", "CAD"],
-    status: "W trakcie",
-  },
-  {
-    id: "eng-1",
-    label: "Mechanika",
-    icon: "📐",
-    category: "Inżynieria",
-    description: "Projekt mechaniczny — zaprojektowany i wykonany od podstaw.",
-    details: "Szczegółowy opis projektu: koncepcja, modelowanie 3D, prototypowanie, testy. Jakie problemy mechaniczne zostały rozwiązane i jakie technologie zastosowano.",
-    tech: ["SolidWorks", "3D Print", "CNC"],
-    status: "Ukończony",
-  },
-  {
-    id: "eng-2",
-    label: "Elektronika",
-    icon: "🔌",
-    category: "Inżynieria",
-    description: "Projekt elektroniczny — własna płytka PCB i system embedded.",
-    details: "Projekt płytki PCB: schemat, layout, lutowanie, testowanie. System embedded sterujący urządzeniem z własnym oprogramowaniem.",
-    tech: ["KiCad", "PCB Design", "Oscyloskop"],
-    status: "Ukończony",
-  },
-  {
-    id: "eng-3",
-    label: "Automatyka",
-    icon: "🏭",
-    category: "Inżynieria",
-    description: "System automatyzacji — sterowanie, czujniki, logika.",
-    details: "Projekt systemu automatyzacji: dobór czujników, programowanie logiki sterowania, integracja z istniejącą infrastrukturą.",
-    tech: ["PLC", "Python", "Sensory"],
-    status: "W trakcie",
-  },
-  {
-    id: "stratostem",
-    label: "StratoSTEM",
-    icon: "🎈",
-    category: "Kosmonautyka",
-    description: "Program edukacyjny PCINN + Boeing — budowa balonów stratosferycznych, eksperymenty naukowe związane z przestrzenią kosmiczną.",
-    details: "Program Podkarpackiego Centrum Innowacji we współpracy z Boeing. Warsztaty dla uczniów szkół średnich z Podkarpacia — projektowanie i budowa balonów stratosferycznych, przygotowanie ładunków naukowych oraz eksperymenty badawcze wyniesione na krawędź stratosfery.",
-    tech: ["Balony stratosferyczne", "Boeing", "PCINN", "Kosmonautyka", "STEM"],
-    status: "W trakcie",
-    url: "https://event.pcinn.org/stratostem",
-  },
-];
+const HARDWARE_CATEGORIES = new Set(["Robotyka", "Inżynieria", "Kosmonautyka"]);
 
-const categoryColor: Record<string, string> = {
-  Robotyka:     "text-neon-cyan border-neon-cyan/20 bg-neon-cyan/10",
-  Inżynieria:   "text-neon-purple border-neon-purple/20 bg-neon-purple/10",
-  Kosmonautyka: "text-amber-400 border-amber-400/20 bg-amber-400/10",
-};
+const items: Item[] = allProjects
+  .filter((p) => HARDWARE_CATEGORIES.has(p.category))
+  .map((p) => ({
+    id: p.id,
+    label: p.title,
+    icon: p.emoji,
+    category: p.category,
+    description: p.description,
+    details: p.details,
+    tech: p.tech,
+    status: p.status,
+    featured: p.featured,
+    url: p.live && /^https?:\/\//.test(p.live) ? p.live : undefined,
+    readMoreUrl: `/projekty/${p.id}`,
+  }));
 
 // Special "Zobacz więcej" paper shown as 3rd slot in folder
 const MORE_ITEM: FolderItem = {
@@ -254,7 +195,7 @@ export default function Robotics() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`px-2 py-1 rounded-md text-[10px] font-mono font-bold border ${categoryColor[selected.category]}`}>
+                        <span className={`px-2 py-1 rounded-md text-[10px] font-mono font-bold border ${categoryColors[selected.category]}`}>
                           {selected.category}
                         </span>
                         <span className={`px-3 py-1 rounded-full text-xs font-mono font-medium ${
@@ -372,7 +313,7 @@ export default function Robotics() {
                       <p className="text-xs text-white/30 truncate mt-0.5">{item.description}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${categoryColor[item.category]}`}>
+                      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${categoryColors[item.category]}`}>
                         {item.category}
                       </span>
                       <span className={`w-1.5 h-1.5 rounded-full ${

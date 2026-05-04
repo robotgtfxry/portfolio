@@ -10,6 +10,7 @@
     "admin": "node admin-tui.js"
   },
   "dependencies": {
+    "@use-gesture/react": "^10.3.1",
     "better-sqlite3": "^12.8.0",
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.8.13",

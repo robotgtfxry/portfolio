@@ -2,53 +2,11 @@
 
 import { useRef, useState, useEffect } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { allProjects, type Project as PortfolioProject } from "@/data/projects";
 
-type Project = {
-  title: string;
-  description: string;
-  details: string;
-  tech: string[];
-  github: string;
-  live: string | null;
-  featured: boolean;
-  emoji: string;
-};
-
-const projects: Project[] = [
-  {
-    title: "Revdu",
-    emoji: "🌐",
-    description: "Mój największy projekt — platforma zbudowana na Next.js, Pythonie i PostgreSQL z wieloma integracjami.",
-    details:
-      "Zaawansowana architektura mikroserwisów, konteneryzacja Dockerem i wiele własnych integracji produkcyjnych. System obsługuje rejestrację użytkowników, katalog produktów, płatności i wiele więcej. Projekt rozwijany komercyjnie od 2024.",
-    tech: ["Next.js", "Python", "PostgreSQL", "Docker", "REST API"],
-    github: "https://github.com/robotgtfxry/",
-    live: "https://revdu.com",
-    featured: true,
-  },
-  {
-    title: "Projekt Software #2",
-    emoji: "💻",
-    description: "Opis drugiego projektu — API, backend, system, automatyzacja.",
-    details:
-      "Szczegółowy opis drugiego projektu. Jak działa, co rozwiązuje, jakie technologie zostały użyte i jakie były największe wyzwania techniczne.",
-    tech: ["Python", "FastAPI", "Docker", "Redis"],
-    github: "#",
-    live: "#",
-    featured: false,
-  },
-  {
-    title: "Projekt Software #3",
-    emoji: "📱",
-    description: "Opis trzeciego projektu — mobile app, IoT, embedded, ML.",
-    details:
-      "Szczegółowy opis trzeciego projektu. Architektura aplikacji, integracje z urządzeniami IoT, modele ML i wyniki.",
-    tech: ["React Native", "Python", "TensorFlow", "MQTT"],
-    github: "#",
-    live: null,
-    featured: false,
-  },
-];
+const SOFTWARE_CATEGORY = "Software";
+const HOME_PROJECTS_COUNT = 3;
 
 function useScrollLock(active: boolean) {
   useEffect(() => {
@@ -72,13 +30,13 @@ function ProjectCard({
   index,
   onClick,
 }: {
-  project: Project;
+  project: PortfolioProject;
   index: number;
   onClick: () => void;
 }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
-  const featured = project.featured;
+  const featured = Boolean(project.featured);
 
   return (
     <motion.div
@@ -162,7 +120,7 @@ function ProjectModal({
   project,
   onClose,
 }: {
-  project: Project;
+  project: PortfolioProject;
   onClose: () => void;
 }) {
   useScrollLock(true);
@@ -173,8 +131,12 @@ function ProjectModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const featured = project.featured;
-  const accent = featured ? "neon-cyan" : "neon-purple";
+  const featured = Boolean(project.featured);
+  const accentText = featured ? "text-neon-cyan" : "text-neon-purple";
+  const accentBorder = featured ? "border-neon-cyan/25" : "border-neon-purple/25";
+  const accentBg = featured ? "bg-neon-cyan/8" : "bg-neon-purple/8";
+  const accentHoverBg = featured ? "hover:bg-neon-cyan/10" : "hover:bg-neon-purple/10";
+  const accentDot = featured ? "bg-neon-cyan" : "bg-neon-purple";
   const accentColor = featured ? "rgba(0,240,255," : "rgba(180,0,255,";
 
   return (
@@ -194,7 +156,7 @@ function ProjectModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <motion.div
           layoutId={`card-${project.title}`}
-          className="relative w-full max-w-2xl max-h-[85vh] rounded-3xl overflow-y-auto pointer-events-auto"
+          className="relative w-full max-w-2xl rounded-3xl overflow-hidden pointer-events-auto"
           style={{
             background: "var(--card-bg)",
             border: featured
@@ -280,7 +242,7 @@ function ProjectModal({
                 {project.tech.map((t) => (
                   <span
                     key={t}
-                    className={`px-3 py-1.5 text-xs rounded-lg border text-${accent} border-${accent}/25 bg-${accent}/8`}
+                    className={`px-3 py-1.5 text-xs rounded-lg border ${accentText} ${accentBorder} ${accentBg}`}
                   >
                     {t}
                   </span>
@@ -289,7 +251,7 @@ function ProjectModal({
 
               {/* Action buttons */}
               <div className="flex gap-3 flex-wrap">
-                {project.github !== "#" && (
+                {project.github && (
                   <a
                     href={project.github}
                     target="_blank"
@@ -300,17 +262,23 @@ function ProjectModal({
                     GitHub
                   </a>
                 )}
-                {project.live && project.live !== "#" && (
+                {project.live && (
                   <a
                     href={project.live}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-${accent} border border-${accent}/25 hover:bg-${accent}/10 transition-all duration-200`}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium ${accentText} border ${accentBorder} ${accentHoverBg} transition-all duration-200`}
                   >
-                    <span className={`w-2 h-2 rounded-full bg-${accent} animate-pulse`} />
+                    <span className={`w-2 h-2 rounded-full ${accentDot} animate-pulse`} />
                     Live Demo
                   </a>
                 )}
+                <Link
+                  href={`/projekty/${project.id}`}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-white/5 text-white/70 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all duration-200"
+                >
+                  Czytaj więcej →
+                </Link>
               </div>
             </motion.div>
           </div>
@@ -323,7 +291,12 @@ function ProjectModal({
 export default function Projects() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const [selected, setSelected] = useState<Project | null>(null);
+  const [selected, setSelected] = useState<PortfolioProject | null>(null);
+
+  const softwareProjects = allProjects.filter((p) => p.category === SOFTWARE_CATEGORY);
+  const featured = softwareProjects.filter((p) => p.featured);
+  const nonFeatured = softwareProjects.filter((p) => !p.featured);
+  const homeProjects = [...featured, ...nonFeatured].slice(0, HOME_PROJECTS_COUNT);
 
   return (
     <section id="projects" className="relative py-32 px-4">
@@ -359,7 +332,7 @@ export default function Projects() {
         </motion.p>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((project, index) => (
+          {homeProjects.map((project, index) => (
             <ProjectCard
               key={project.title}
               project={project}

@@ -21,13 +21,13 @@ const skillCategories: Category[] = [
     title: "Backend",
     colorVar: "var(--neon-purple)",
     colorRgb: "180,0,255",
-    skills: ["Python", "FastAPI", "Node.js", "PostgreSQL", "REST API"],
+    skills: ["Python", "FastAPI", "Node.js", "PostgreSQL", "REST API", "Bramki płatnicze"],
   },
   {
     title: "Mobile",
     colorVar: "var(--neon-pink)",
     colorRgb: "255,0,128",
-    skills: ["Swift", "SwiftUI", "Kotlin", "React Native", "Expo"],
+    skills: ["Kotlin", "React Native", "Expo", "Flutter"],
   },
   {
     title: "Robotyka",
@@ -46,12 +46,6 @@ const skillCategories: Category[] = [
     colorVar: "var(--neon-pink)",
     colorRgb: "255,0,128",
     skills: ["Git", "Docker", "Linux", "VS Code", "SEO"],
-  },
-  {
-    title: "Płatności",
-    colorVar: "var(--neon-cyan)",
-    colorRgb: "0,240,255",
-    skills: ["Stripe", "PayU", "Przelewy24", "Webhooks", "PCI DSS"],
   },
 ];
 
