@@ -113,6 +113,7 @@ const SECTION_SELECTORS: Record<string, string> = {
   robotics: '#robotics',
   engineering: '#engineering',
   projects: '#projects',
+  showcase3d: '#showcase3d',
   contact: '#contact',
 };
 

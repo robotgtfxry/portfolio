@@ -283,7 +283,7 @@ export default function Contact() {
           className="mb-4"
         >
           <span className="text-neon-cyan font-mono text-sm tracking-widest uppercase">
-            06 — Kontakt
+            07 — Kontakt
           </span>
         </motion.div>
 

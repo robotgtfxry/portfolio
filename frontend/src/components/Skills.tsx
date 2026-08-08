@@ -130,7 +130,7 @@ export default function Skills() {
           className="mb-4"
         >
           <span className="text-neon-cyan font-mono text-sm tracking-widest uppercase">
-            04 — Umiejętności
+            03 — Umiejętności
           </span>
         </motion.div>
 

@@ -10,6 +10,7 @@ const navItems = [
   { label: "Skills",      href: "#skills",      icon: "◈" },
   { label: "Projects",    href: "#projects",    icon: "◻" },
   { label: "Hardware",    href: "#robotics",    icon: "⚙" },
+  { label: "3D",          href: "#showcase3d",  icon: "◆" },
   { label: "Contact",     href: "#contact",     icon: "✉" },
 ];
 
@@ -49,19 +50,54 @@ export default function Navigation() {
   const [isAtBottom, setIsAtBottom] = useState(false);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) setActiveSection(entry.target.id);
-        });
-      },
-      { threshold: 0.3 }
-    );
-    navItems.forEach(({ href }) => {
-      const el = document.querySelector(href);
-      if (el) observer.observe(el);
-    });
-    return () => observer.disconnect();
+    const sections = navItems
+      .map(({ href }) => document.querySelector<HTMLElement>(href))
+      .filter((el): el is HTMLElement => Boolean(el));
+    if (sections.length === 0) return;
+
+    let frame = 0;
+
+    const update = () => {
+      frame = 0;
+      const doc = document.documentElement;
+
+      // Na samym dole strony ostatnia sekcja wygrywa zawsze — inaczej nie da się jej
+      // podświetlić, gdy jest krótsza niż dystans do linii odniesienia.
+      if (window.innerHeight + window.scrollY >= doc.scrollHeight - 2) {
+        const last = sections.reduce((a, b) => (b.offsetTop > a.offsetTop ? b : a));
+        setActiveSection(last.id);
+        return;
+      }
+
+      // Aktywna jest ta sekcja, której górna krawędź minęła linię na 35% wysokości okna
+      // jako ostatnia. Wynik nie zależy od kolejności elementów ani od tego,
+      // ile sekcji akurat widać.
+      const line = window.scrollY + window.innerHeight * 0.35;
+      let current = sections[0];
+      let best = -Infinity;
+      for (const el of sections) {
+        const top = el.offsetTop;
+        if (top <= line && top > best) {
+          best = top;
+          current = el;
+        }
+      }
+      setActiveSection(current.id);
+    };
+
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    update();
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, []);
 
   useEffect(() => {
@@ -80,8 +116,10 @@ export default function Navigation() {
       initial={{ y: 100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 1.5, duration: 0.8, ease: "easeOut" }}
-      /* max-w keeps pill from overflowing the viewport on narrow screens */
-      className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-12px)]"
+      /* max-w keeps pill from overflowing the viewport on narrow screens.
+         z-30 trzyma pigułkę nad treścią sekcji (z-10), ale pod modalami i ich
+         przyciemnieniem (z-40/z-50) — inaczej zasłaniałaby przyciski w oknach. */
+      className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 max-w-[calc(100vw-12px)]"
     >
       {/* Single pill that grows when at bottom */}
       <motion.div

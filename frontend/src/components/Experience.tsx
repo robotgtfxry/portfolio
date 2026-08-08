@@ -21,7 +21,19 @@ type TimelineItem = {
 const timeline: TimelineItem[] = [
   {
     type: "role",
-    title: "CTO",
+    title: "Chief Engineer",
+    org: "Attention Link",
+    url: "https://attention-link.com",
+    period: "obecnie",
+    description:
+      "Prowadzę rozwój techniczny startupu budującego łącza radiowe dla dronów — transmisja wideo i telemetrii, kompresja strumienia i szyfrowanie, z zastosowaniami w obronności.",
+    tags: ["Drony", "Systemy radiowe", "Kompresja", "Szyfrowanie", "Embedded"],
+    color: "purple",
+    collapsible: false,
+  },
+  {
+    type: "role",
+    title: "Platform Engineer",
     org: "Revdu",
     url: "https://revdu.com",
     period: "2024 — obecnie",
@@ -176,10 +188,13 @@ function TimelineEntry({
   item,
   index,
   isInView,
+  instant = false,
 }: {
   item: TimelineItem;
   index: number;
   isInView: boolean;
+  /** Wpisy odsłaniane kliknięciem „rozwiń" — bez własnego wejścia, żeby nie było pustej luki. */
+  instant?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [certOpen, setCertOpen] = useState(false);
@@ -198,9 +213,9 @@ function TimelineEntry({
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, x: -30 }}
-        animate={isInView ? { opacity: 1, x: 0 } : {}}
-        transition={{ delay: 0.3 + index * 0.12, duration: 0.6 }}
+        initial={instant ? false : { opacity: 0 }}
+        animate={instant || isInView ? { opacity: 1 } : {}}
+        transition={instant ? { duration: 0 } : { delay: 0.3 + index * 0.12, duration: 0.6 }}
         className="relative flex gap-6"
       >
         {/* Timeline spine + dot */}
@@ -406,7 +421,8 @@ export default function Experience() {
           transition={{ delay: 0.3 }}
           className="text-white/40 text-lg mb-16 max-w-2xl"
         >
-          Buduję produkty jako CTO i dzielę się wiedzą jako mentor na hackathonach.
+          Tworzę strony i aplikacje webowe, rozwijam systemy radiowe dla dronów i dzielę się
+          wiedzą jako mentor na hackathonach.
         </motion.p>
 
         {/* Timeline — collapsed: first item with blur fade, expanded: all */}
@@ -459,6 +475,7 @@ export default function Experience() {
                     item={item}
                     index={index + 1}
                     isInView={isInView}
+                    instant
                   />
                 ))}
               </motion.div>

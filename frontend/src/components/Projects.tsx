@@ -25,6 +25,26 @@ function GitHubIcon() {
   );
 }
 
+/** Zdjęcie w pasku nagłówka karty i modala. Logotypy (imageFit: "contain") nie są kadrowane. */
+function ProjectImage({ project }: { project: PortfolioProject }) {
+  const contain = project.imageFit === "contain";
+
+  return (
+    <>
+      <img
+        src={project.image}
+        alt={project.title}
+        loading="lazy"
+        className={`absolute inset-0 w-full h-full ${
+          contain ? "object-contain p-8" : "object-cover"
+        }`}
+        style={project.imageBg ? { backgroundColor: project.imageBg } : undefined}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/30" />
+    </>
+  );
+}
+
 function ProjectCard({
   project,
   index,
@@ -63,20 +83,19 @@ function ProjectCard({
         {/* Image area */}
         <motion.div
           layoutId={`card-image-${project.title}`}
-          className={`relative h-44 flex items-center justify-center border-b border-card-border overflow-hidden ${
+          className={`relative h-44 border-b border-card-border overflow-hidden ${
             featured
               ? "bg-gradient-to-br from-neon-cyan/5 to-neon-purple/5"
               : "bg-gradient-to-br from-neon-purple/5 to-neon-pink/5"
           }`}
         >
+          <ProjectImage project={project} />
+
           {featured && (
-            <div className="absolute top-3 right-3 px-2 py-1 rounded-md text-[10px] font-mono font-bold tracking-widest uppercase text-neon-cyan border border-neon-cyan/30 bg-neon-cyan/5">
+            <div className="absolute top-3 right-3 px-2 py-1 rounded-md text-[10px] font-mono font-bold tracking-widest uppercase text-neon-cyan border border-neon-cyan/30 bg-black/40 backdrop-blur-sm">
               ★ Featured
             </div>
           )}
-          <motion.div layoutId={`card-emoji-${project.title}`} className="text-5xl">
-            {project.emoji}
-          </motion.div>
         </motion.div>
 
         <div className="p-6 flex flex-col">
@@ -156,7 +175,7 @@ function ProjectModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <motion.div
           layoutId={`card-${project.title}`}
-          className="relative w-full max-w-2xl rounded-3xl overflow-hidden pointer-events-auto"
+          className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl overflow-hidden pointer-events-auto"
           style={{
             background: "var(--card-bg)",
             border: featured
@@ -168,12 +187,14 @@ function ProjectModal({
           {/* Top image band */}
           <motion.div
             layoutId={`card-image-${project.title}`}
-            className={`relative h-52 flex items-center justify-center overflow-hidden ${
+            className={`relative h-52 shrink-0 overflow-hidden ${
               featured
                 ? "bg-gradient-to-br from-neon-cyan/10 to-neon-purple/10"
                 : "bg-gradient-to-br from-neon-purple/10 to-neon-pink/10"
             }`}
           >
+            <ProjectImage project={project} />
+
             {/* Glow */}
             <div
               className="absolute inset-0 pointer-events-none"
@@ -182,16 +203,12 @@ function ProjectModal({
               }}
             />
 
-            <motion.div layoutId={`card-emoji-${project.title}`} className="text-7xl">
-              {project.emoji}
-            </motion.div>
-
             {featured && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="absolute top-4 right-4 px-2 py-1 rounded-md text-[10px] font-mono font-bold tracking-widest uppercase text-neon-cyan border border-neon-cyan/30 bg-neon-cyan/5"
+                className="absolute top-4 right-4 px-2 py-1 rounded-md text-[10px] font-mono font-bold tracking-widest uppercase text-neon-cyan border border-neon-cyan/30 bg-black/40 backdrop-blur-sm"
               >
                 ★ Featured
               </motion.div>
@@ -210,7 +227,7 @@ function ProjectModal({
           </motion.div>
 
           {/* Content */}
-          <div className="p-8">
+          <div className="p-8 min-h-0 overflow-y-auto">
             <motion.h3
               layoutId={`card-title-${project.title}`}
               className="text-3xl font-bold mb-2"
@@ -233,8 +250,8 @@ function ProjectModal({
             >
               <div className="w-full h-px bg-white/8 my-5" />
 
-              <p className="text-white/40 text-sm leading-relaxed mb-6">
-                {project.details}
+              <p className="text-white/40 text-sm leading-relaxed mb-6 whitespace-pre-line">
+                {project.summary ?? project.details}
               </p>
 
               {/* Tech tags */}
@@ -308,7 +325,7 @@ export default function Projects() {
           className="mb-4"
         >
           <span className="text-neon-cyan font-mono text-sm tracking-widest uppercase">
-            03 — Projekty Software
+            04 — Projekty Software
           </span>
         </motion.div>
 
