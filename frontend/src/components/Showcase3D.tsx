@@ -80,7 +80,7 @@ export default function Showcase3D() {
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: 0.2 }}
           >
-            Web, którego nie widać <span className="gradient-text">na zrzucie ekranu</span>
+            Kliknij. Przeciągnij. <span className="gradient-text">Zobacz.</span>
           </motion.span>
         </h2>
       </div>

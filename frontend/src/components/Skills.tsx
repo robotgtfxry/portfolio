@@ -27,7 +27,7 @@ const skillCategories: Category[] = [
     title: "Mobile",
     colorVar: "var(--neon-pink)",
     colorRgb: "255,0,128",
-    skills: ["Kotlin", "React Native", "Expo", "Flutter"],
+    skills: ["Kotlin", "React Native", "Expo", "Flutter", "Google Play Console"],
   },
   {
     title: "Robotyka",
@@ -45,7 +45,7 @@ const skillCategories: Category[] = [
     title: "Narzędzia",
     colorVar: "var(--neon-pink)",
     colorRgb: "255,0,128",
-    skills: ["Git", "Docker", "Linux", "VS Code", "SEO"],
+    skills: ["Git", "Docker", "Linux", "VS Code", "SEO", "Google Search Console"],
   },
 ];
 

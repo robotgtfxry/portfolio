@@ -20,7 +20,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -134,6 +134,15 @@ async def _contact(payload: ContactPayload):
 
     # Kontakty nie sa tu zapisywane — baza zyje tylko na lokalnym backendzie.
     return {"ok": True, "email_sent": True}
+
+
+@app.post("/track")
+async def track() -> Response:
+    """Zaslepka. Analytics zyja wylacznie na lokalnym backendzie, ale frontend
+    na produkcji i tak wola /track przy kazdym wejsciu. Bez tej trasy kazdy
+    odwiedzajacy dostawal 404 w konsoli. Tresc zadania jest odrzucana —
+    nic nie jest zapisywane."""
+    return Response(status_code=204)
 
 
 app.get("/health")(_health)
