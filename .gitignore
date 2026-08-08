@@ -55,3 +55,7 @@ venv/
 
 # Lokalna baza analityki (zawiera dane odwiedzajacych)
 *.db
+
+
+useme_odrzucone.json
+useme_watchlist.json
