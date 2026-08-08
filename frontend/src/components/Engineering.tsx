@@ -3,7 +3,26 @@
 import { useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
 
-const engineeringProjects = [
+type EngineeringProject = {
+  title: string;
+  category: string;
+  description: string;
+  tools: string[];
+  /** Link zewnętrzny — np. artykuł prasowy o projekcie. */
+  url?: string;
+  urlLabel?: string;
+};
+
+const engineeringProjects: EngineeringProject[] = [
+  {
+    title: "Silnik jonowy dla nanosatelitów",
+    category: "Kosmonautyka",
+    description:
+      "Napęd elektrostatyczny dla CubeSatów — bez paliwa chemicznego i bez części ruchomych. Zwycięzca VII edycji Akademii ProtoLab (PCINN).",
+    tools: ["CubeSat", "Napęd jonowy", "Elektrostatyka"],
+    url: "https://rzeszow-news.pl/vii-edycja-akademii-protolab-juz-za-nami-zwyciezyl-silnik-jonowy-dla-nanosatelitow/",
+    urlLabel: "Artykuł w Rzeszów News",
+  },
   {
     title: "Projekt Inżynieryjny #1",
     category: "Mechanika",
@@ -34,7 +53,7 @@ function TiltedCard({
   project,
   index,
 }: {
-  project: (typeof engineeringProjects)[0];
+  project: EngineeringProject;
   index: number;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -59,6 +78,7 @@ function TiltedCard({
     Elektronika: "var(--neon-purple)",
     Design: "var(--neon-pink)",
     Automatyka: "var(--neon-cyan)",
+    Kosmonautyka: "var(--neon-pink)",
   };
 
   return (
@@ -122,6 +142,17 @@ function TiltedCard({
               </span>
             ))}
           </div>
+
+          {project.url && (
+            <a
+              href={project.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-1.5 text-xs font-mono text-neon-cyan underline underline-offset-4 decoration-neon-cyan/30 hover:text-neon-purple hover:decoration-neon-purple/50 transition-colors"
+            >
+              {project.urlLabel ?? "Zobacz więcej"} ↗
+            </a>
+          )}
         </div>
       </motion.div>
     </motion.div>
