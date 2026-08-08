@@ -19,13 +19,16 @@ Lista obserwowanych (watchlist):
   Zapisuje sie do pliku useme_watchlist.json obok skryptu razem z migawka stanu.
   Przy kazdym starcie program pobiera oferty, porownuje je z migawka i pokazuje
   okno z tym, co sie zmienilo (liczba ofert, cena, zakonczenie zlecenia, tytul).
+  Wyroznione dostaja swieze dane zawsze: te, ktorych nie ma na pobranych
+  stronach kategorii, sa dociagane pojedynczo z ich wlasnych stron ogloszen.
   Widok jest podwojny i rowny: po lewej "Wszystkie ogloszenia", po prawej panel
   "Wyroznione", miedzy nimi ruchomy suwak ustawiony na srodku. Wyroznione
-  ogloszenie znika z lewej tabeli i siedzi tylko w prawym panelu - spacja
-  (albo Ctrl+D) w panelu zdejmuje wyroznienie i wraca je do tabeli, Delete
-  odrzuca. Panel chowa sie przyciskiem "Ukryj"
-  albo checkboxem "Panel wyroznionych" w pasku pobierania - wtedy wyroznione
-  wracaja na sama gore glownej tabeli i nie sa ukrywane przez filtry.
+  ogloszenie od razu znika z lewej tabeli i siedzi wylacznie w prawym panelu -
+  na zawsze, zaden filtr go tam nie wciagnie z powrotem. Spacja (albo Ctrl+D)
+  w panelu zdejmuje wyroznienie i dopiero wtedy ogloszenie wraca do tabeli,
+  Delete odrzuca. Panel chowa sie przyciskiem "Ukryj" albo checkboxem "Panel
+  wyroznionych" w pasku pobierania - schowanie chowa razem z nim wyroznione
+  ogloszenia, w tabeli sie nie pojawia (pasek stanu pisze, ile ich czeka).
 
 Odrzucanie ogloszen:
   Klikasz "x" w kolumnie X (albo Delete / przycisk pod tabela) i ogloszenie
@@ -34,9 +37,11 @@ Odrzucanie ogloszen:
   Odznaczenie filtra pokazuje je na szaro ze znakiem "+" do przywrocenia.
   Odrzucenie zdejmuje ogloszenie z obserwowanych i odwrotnie.
 
-  Strony pojedynczych ogloszen sa za Cloudflare, wiec porownanie opiera sie na
-  listach kategorii - jesli obserwowane zlecenie wypadlo poza pobrane strony,
-  program napisze o tym wprost zamiast zgadywac.
+  Uwaga na "Wazne przez N dni" na stronie ogloszenia: to dlugosc waznosci
+  liczona od publikacji (stala), a nie ile zostalo. Date wygasniecia bierzemy
+  z JSON-LD (validThrough) i dopiero z niej liczymy "znika za X dni" - tak samo
+  jak robi to listing kategorii. Gdy strony nie da sie pobrac (404, blad sieci),
+  program napisze o tym wprost i pokaze ostatnia migawke zamiast zgadywac.
 
 Uruchomienie:
     python useme_scraper.py
@@ -52,7 +57,7 @@ import re
 import threading
 import webbrowser
 import tkinter as tk
-from datetime import datetime
+from datetime import date, datetime
 from tkinter import ttk, filedialog, messagebox
 
 try:
@@ -291,6 +296,136 @@ def parse_deadline(raw):
     return value
 
 
+def parse_published(raw):
+    """'wczoraj' / '3 dni temu' / '2026-05-08' -> ile dni temu opublikowano."""
+    low = raw.lower()
+    if "wczoraj" in low:
+        return 1.0
+    if "dzis" in low or "dziś" in low or "godzin" in low or "minut" in low:
+        return 0.0
+
+    match = re.search(r"(\d+)\s*(dni|dzien|dzień|tyg|miesi)", low)
+    if match:
+        value = float(match.group(1))
+        unit = match.group(2)
+        if unit.startswith("tyg"):
+            return value * 7.0
+        if unit.startswith("miesi"):
+            return value * 30.0
+        return value
+
+    match = re.search(r"(\d{4})-(\d{2})-(\d{2})", raw)
+    if match:
+        published = datetime(*(int(part) for part in match.groups()))
+        return float((datetime.now() - published).days)
+
+    return None
+
+
+def format_days_left(left):
+    """Termin w stylu listingu useme: 'Znika za 6 dni' / 'Znika za 1 dzien'."""
+    if left <= 0:
+        return "Zakonczone"
+    days = int(left)
+    return f"Znika za {days} dzien" if days == 1 else f"Znika za {days} dni"
+
+
+def parse_iso_date(raw):
+    """'2026-08-09' albo '2026-08-09T12:00:00+02:00' -> date."""
+    match = re.match(r"\s*(\d{4})-(\d{2})-(\d{2})", raw or "")
+    if not match:
+        return None
+    try:
+        return date(*(int(part) for part in match.groups()))
+    except ValueError:
+        return None
+
+
+def parse_job_ld(soup):
+    """JobPosting z <script type="application/ld+json">.
+
+    Siedzi tam twarda data wygasniecia (validThrough), wiec nie musimy liczyc
+    niczego z tekstu "Wazne przez N dni" - ten podaje dlugosc waznosci liczona
+    od publikacji, a nie ile zostalo.
+    """
+    for tag in soup.select('script[type="application/ld+json"]'):
+        try:
+            data = json.loads(tag.string or "")
+        except (ValueError, TypeError):
+            continue
+        for item in (data if isinstance(data, list) else [data]):
+            if isinstance(item, dict) and item.get("@type") == "JobPosting":
+                return item
+    return {}
+
+
+def parse_job_page(html):
+    """Swieze dane wprost ze strony ogloszenia - dla wyroznionych.
+
+    Termin bierzemy z validThrough w JSON-LD; gdyby go zabraklo, liczymy go
+    z daty publikacji i dlugosci waznosci ("Wazne przez N dni").
+    Zwraca slownik pol do nadpisania migawki albo pusty, gdy nic nie rozpoznano.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    data = {}
+
+    title = _text(soup.select_one("h1"))
+    if title:
+        data["title"] = title
+
+    summary = {}
+    for item in soup.select(".jobs-summary__item"):
+        label = _text(item.select_one(".jobs-summary__item-label")).lower()
+        value = _text(item.select_one(".jobs-summary__item-value"))
+        if label and value and label not in summary:
+            summary[label] = value
+
+    # etykiety maja polskie znaki (Budzet/Wazne), wiec dopasowujemy fragmentami
+    published_raw = valid_raw = ""
+    for label, value in summary.items():
+        if "bud" in label:
+            data["price_raw"] = value
+        elif "zlecenio" in label:
+            data["client"] = value
+        elif "kategoria" in label:
+            data["subcategory"] = value
+        elif "opublik" in label:
+            published_raw = value
+        elif "przez" in label:
+            valid_raw = value
+
+    if "price_raw" in data:
+        negotiable = any(word in data["price_raw"].lower()
+                         for word in NEGOTIABLE_WORDS)
+        data["negotiable"] = negotiable
+        data["price"] = None if negotiable else parse_price(data["price_raw"])
+
+    for head in soup.select("h2"):
+        match = re.search(r"\((\d+)\)", _text(head)) if "ofert" in _text(head).lower() else None
+        if match:
+            data["offers"] = int(match.group(1))
+            break
+
+    # 1. twarda data z JSON-LD, 2. dopiero potem liczenie z tekstu
+    left = None
+    valid_through = parse_iso_date(parse_job_ld(soup).get("validThrough"))
+    if valid_through is not None:
+        left = float((valid_through - date.today()).days)
+    else:
+        valid_days = parse_deadline(valid_raw)
+        days_ago = parse_published(published_raw)
+        if valid_days is not None and days_ago is not None:
+            left = valid_days - days_ago
+
+    if left is not None:
+        data["days_left"] = left
+        data["finished"] = left <= 0
+        data["deadline_raw"] = format_days_left(left)
+
+    # sam tytul to za malo, zeby uznac strone za odczytana
+    return data if "offers" in data or "price_raw" in data else {}
+
+
 def parse_page(html, category):
     """Wyciaga liste Job z HTML-a strony kategorii."""
     soup = BeautifulSoup(html, "html.parser")
@@ -382,11 +517,61 @@ def fetch_jobs(categories, pages=1, progress=None, stop_flag=None):
     return collected
 
 
+def fetch_watched_jobs(urls, snapshots, progress=None, stop_flag=None):
+    """Dociaga swieze dane wprost ze stron wyroznionych ogloszen.
+
+    Uzywane dla tych, ktore wypadly poza pobrane strony kategorii - zamiast
+    pokazywac migawke sprzed tygodnia, pytamy o nie osobno. Czego nie da sie
+    odczytac ze strony (opis, kategoria), zostaje z migawki.
+    """
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    jobs = []
+
+    for index, url in enumerate(urls, 1):
+        if stop_flag is not None and stop_flag.is_set():
+            break
+        if progress:
+            progress(f"Odswiezam wyroznione: {index}/{len(urls)}...")
+
+        try:
+            response = session.get(url, timeout=25)
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            if progress:
+                progress(f"Nie udalo sie odswiezyc wyroznionego: {exc}")
+            continue
+
+        response.encoding = response.apparent_encoding or "utf-8"
+        fresh = parse_job_page(response.text)
+        if not fresh:
+            continue
+
+        data = dict(snapshots.get(url) or {})
+        data.update(fresh)
+        data["url"] = url
+        jobs.append(Job(**{name: data.get(name) for name in Job.SNAPSHOT_FIELDS}))
+
+    return jobs
+
+
 # ---------------------------------------------------------------- GUI
 
 
+def panel_deadline(job):
+    """Krotki tekst do waskiej kolumny 'Do konca' w panelu wyroznionych."""
+    if job.finished:
+        return "koniec"
+    if job.days_left is None:
+        return job.deadline_raw or "-"
+    if job.days_left < 1:
+        return f"{max(1, int(job.days_left * 24))} godz"
+    days = int(job.days_left)
+    return "1 dzien" if days == 1 else f"{days} dni"
+
+
 COLUMNS = (
-    ("watch", "Obs.", 45, "center"),
+    ("watch", "Wyr.", 45, "center"),
     ("reject", "X", 34, "center"),
     ("category", "Kategoria", 150, "w"),
     ("title", "Tytul", 430, "w"),
@@ -440,14 +625,14 @@ class App(ttk.Frame):
         self.watch_panel.columnconfigure(0, weight=1)
 
         self.watch_tree = ttk.Treeview(
-            self.watch_panel, columns=("title", "offers", "price"),
+            self.watch_panel, columns=("title", "offers", "deadline"),
             show="headings", selectmode="browse", height=12)
         self.watch_tree.heading("title", text="Tytul")
         self.watch_tree.heading("offers", text="Of.")
-        self.watch_tree.heading("price", text="Cena")
+        self.watch_tree.heading("deadline", text="Do konca")
         self.watch_tree.column("title", width=190, anchor="w", stretch=True)
         self.watch_tree.column("offers", width=38, anchor="center", stretch=False)
-        self.watch_tree.column("price", width=80, anchor="e", stretch=False)
+        self.watch_tree.column("deadline", width=80, anchor="e", stretch=False)
         self.watch_tree.grid(row=0, column=0, sticky="nsew")
 
         scroll = ttk.Scrollbar(self.watch_panel, orient="vertical",
@@ -486,9 +671,12 @@ class App(ttk.Frame):
             if not visible:
                 self.split.add(self.watch_panel, weight=1)  # wraca na prawa strone
                 self.after_idle(self.center_sash)           # znowu po polowie
+            self.refresh_watch_panel()
         elif visible:
             self.split.forget(self.watch_panel)
-        self.apply_filters()
+        # tabela sie nie zmienia - wyroznionych i tak w niej nie ma - ale pasek
+        # stanu ma powiedziec, czy sa teraz widoczne, czy schowane razem z panelem
+        self.refresh_status()
 
     def center_sash(self):
         """Suwak na srodku - oba kontenery maja byc rowne."""
@@ -596,10 +784,8 @@ class App(ttk.Frame):
                         command=self.apply_filters).grid(
             row=1, column=4, columnspan=2, sticky="w", pady=(6, 0))
 
-        self.only_watched = tk.BooleanVar(value=False)
-        ttk.Checkbutton(box, text="Tylko obserwowane", variable=self.only_watched,
-                        command=self.apply_filters).grid(
-            row=2, column=4, sticky="w", pady=(6, 0))
+        # filtra "Tylko wyroznione" tu nie ma - wyroznione i tak nigdy nie sa
+        # w tej tabeli, ich widok to prawy panel
 
         self.hide_rejected = tk.BooleanVar(value=True)
         ttk.Checkbutton(box, text="Ukryj odrzucone (X)", variable=self.hide_rejected,
@@ -715,9 +901,20 @@ class App(ttk.Frame):
         self.fetch_btn.configure(state="disabled")
         self.stop_btn.configure(state="normal")
 
+        # migawki kopiujemy przed startem watku - GUI moze je w tym czasie zmienic
+        snapshots = {url: dict(entry) for url, entry in self.watch.data.items()}
+
         def job():
             result = fetch_jobs(chosen, pages, progress=self.set_status_async,
                                 stop_flag=self.stop_flag)
+            # wyroznione musza miec swieze dane nawet wtedy, gdy wypadly poza
+            # pobrane strony kategorii - te dociagamy z ich wlasnych stron
+            seen = {item.url for item in result}
+            missing = [url for url in snapshots if url not in seen]
+            if missing and not self.stop_flag.is_set():
+                result.extend(fetch_watched_jobs(
+                    missing, snapshots, progress=self.set_status_async,
+                    stop_flag=self.stop_flag))
             self.after(0, self.on_fetched, result)
 
         self.worker = threading.Thread(target=job, daemon=True)
@@ -749,7 +946,7 @@ class App(ttk.Frame):
             job = fresh.get(url)
             if job is None:
                 snapshot = job_from_snapshot(self.watch.data[url])
-                jobs.append(snapshot)          # obserwowane zawsze widoczne
+                jobs.append(snapshot)          # zeby panel mial co pokazac
                 missing.append(snapshot)
                 continue
             job.changes = self.watch.diff(job)
@@ -761,7 +958,7 @@ class App(ttk.Frame):
 
         lines = []
         if changed:
-            lines.append(f"ZMIANY W OBSERWOWANYCH ({len(changed)}):")
+            lines.append(f"ZMIANY W WYROZNIONYCH ({len(changed)}):")
             for job in changed:
                 lines.append("")
                 lines.append(f"* {job.title}")
@@ -771,9 +968,10 @@ class App(ttk.Frame):
         if missing:
             if lines:
                 lines.append("")
-            lines.append(f"NIE ZNALEZIONO NA POBRANYCH STRONACH ({len(missing)}):")
-            lines.append("(moga byc dalej niz pobrana liczba stron albo juz "
-                         "zniknely z listy - zwieksz 'Stron na kategorie')")
+            lines.append(f"NIE UDALO SIE ODSWIEZYC ({len(missing)}):")
+            lines.append("(nie bylo ich na pobranych stronach, a ich wlasne "
+                         "strony nie odpowiedzialy - dane ponizej sa z ostatniego "
+                         "zapisu)")
             for job in missing:
                 lines.append(f"* {job.title}")
                 lines.append(f"    {job.url}")
@@ -785,7 +983,7 @@ class App(ttk.Frame):
         if changed:
             notes.append(f"zmian: {len(changed)}")
         if missing:
-            notes.append(f"brak w wynikach: {len(missing)}")
+            notes.append(f"nie odswiezono: {len(missing)}")
         self.watch_note = ", ".join(notes) if notes else "bez zmian"
 
         return lines
@@ -852,25 +1050,16 @@ class App(ttk.Frame):
         min_days = self._to_float(self.min_days_var.get())
         max_days = self._to_float(self.max_days_var.get())
 
-        only_watched = self.only_watched.get()
         hide_rejected = self.hide_rejected.get()
-        panel_on = self.show_watch_panel.get()
 
         result = []
         for job in self.all_jobs:
             if hide_rejected and job.url in self.rejected:
                 continue
 
-            watched = job.url in self.watch
-            if only_watched and not watched:
-                continue
-            if watched:
-                # przy widocznym panelu wyroznione siedza tylko w nim; wyjatkiem
-                # jest filtr "Tylko obserwowane", ktory wprost prosi o nie w tabeli
-                if panel_on and not only_watched:
-                    continue
-                # obserwowane przechodza przez filtry zawsze - po to sa obserwowane
-                result.append(job)
+            # wyroznione nigdy nie siedza w glownej tabeli - maja swoj panel,
+            # a schowanie panelu ich nie przywraca, tylko chowa razem z nim
+            if job.url in self.watch:
                 continue
 
             haystack = " ".join(
@@ -904,13 +1093,8 @@ class App(ttk.Frame):
         self.refresh_table()
 
     def refresh_table(self, select_url=None):
-        # obserwowane zawsze na gorze, ze zmianami przed reszta (sort stabilny)
-        self.shown_jobs.sort(key=lambda job: (job.url not in self.watch,
-                                              not job.changes))
-
         self.tree.delete(*self.tree.get_children())
         for index, job in enumerate(self.shown_jobs):
-            watched = job.url in self.watch
             is_rejected = job.url in self.rejected
             if is_rejected:
                 tag = "rejected"
@@ -927,11 +1111,10 @@ class App(ttk.Frame):
             else:
                 tag = ""
 
-            star = "*" if watched else ""
-            if watched and job.changes:
-                star = "*!"
+            # kolumna "Obs." jest tu tylko przyciskiem: klik wyroznia i wiersz
+            # znika do panelu, wiec zadne ogloszenie w tabeli nie ma gwiazdki
             self.tree.insert("", "end", iid=str(index),
-                             values=(star, "+" if is_rejected else "x")
+                             values=("+", "+" if is_rejected else "x")
                                     + job.as_row()[:8],
                              tags=(tag,) if tag else ())
 
@@ -942,22 +1125,24 @@ class App(ttk.Frame):
                     self.tree.see(str(index))
                     break
 
+        self.refresh_status()
+        self.refresh_watch_panel()
+
+    def refresh_status(self):
         finished_total = sum(1 for job in self.all_jobs if job.finished)
         extra = (f" (ukryto {finished_total} zakonczonych)"
                  if self.hide_finished.get() and finished_total else "")
         watched_note = ""
         if len(self.watch):
-            where = " (w prawym panelu)" if self.show_watch_panel.get() else ""
-            watched_note = f" | wyroznione: {len(self.watch)}{where}"
-            if self.watch_note:
-                watched_note += f" ({self.watch_note})"
+            where = ("w prawym panelu" if self.show_watch_panel.get()
+                     else "panel schowany")
+            watched_note = f" | wyroznione: {len(self.watch)} ({where}"
+            watched_note += f", {self.watch_note})" if self.watch_note else ")"
         if len(self.rejected):
             watched_note += f" | odrzucone: {len(self.rejected)}"
         self.set_status(
             f"Wyswietlono {len(self.shown_jobs)} z {len(self.all_jobs)} "
             f"ogloszen{extra}{watched_note}.")
-
-        self.refresh_watch_panel()
 
     # ------------------------------------------------------ panel wyroznionych
 
@@ -993,7 +1178,7 @@ class App(ttk.Frame):
             self.watch_tree.insert(
                 "", "end", iid=str(index),
                 values=(title, job.offers if job.offers is not None else "-",
-                        job.price_raw or "-"),
+                        panel_deadline(job)),
                 tags=(tag,) if tag else ())
 
         self.watch_panel.configure(text=f"Wyroznione ({len(self.panel_jobs)})")
@@ -1165,8 +1350,10 @@ class App(ttk.Frame):
                 self.details.insert("end", "\n")
             if job.stale:
                 self.details.insert(
-                    "end", "Nie bylo tego ogloszenia na pobranych stronach - "
-                           "dane ponizej sa z ostatniego zapisu.\n\n")
+                    "end", "Nie udalo sie odswiezyc tego ogloszenia (nie ma go "
+                           "na pobranych stronach, jego wlasna strona tez nie "
+                           "odpowiedziala) - dane ponizej sa z ostatniego "
+                           "zapisu.\n\n")
             self.details.insert("end", f"Zleceniodawca: {job.client}\n")
             self.details.insert("end", f"Kategoria: {job.category} / {job.subcategory}\n")
             self.details.insert(
@@ -1203,7 +1390,10 @@ class App(ttk.Frame):
     # ------------------------------------------------------ eksport
 
     def export_csv(self):
-        if not self.shown_jobs:
+        # wyroznionych nie ma w tabeli, wiec doklejamy je z panelu - inaczej
+        # eksport gubilby akurat te ogloszenia, na ktorych zalezy najbardziej
+        rows = self.watched_jobs() + self.shown_jobs
+        if not rows:
             messagebox.showinfo("Useme", "Brak danych do zapisania.")
             return
 
@@ -1217,9 +1407,9 @@ class App(ttk.Frame):
             writer = csv.writer(handle, delimiter=";")
             writer.writerow(["Kategoria", "Tytul", "Ofert", "Cena", "Negocjacja",
                              "Do konca", "Zleceniodawca", "Podkategoria", "Link",
-                             "Zakonczone", "Obserwowane", "Odrzucone", "Zmiany",
+                             "Zakonczone", "Wyroznione", "Odrzucone", "Zmiany",
                              "Opis"])
-            for job in self.shown_jobs:
+            for job in rows:
                 writer.writerow(list(job.as_row()) + [
                     "tak" if job.finished else "nie",
                     "tak" if job.url in self.watch else "nie",
@@ -1228,7 +1418,7 @@ class App(ttk.Frame):
                     job.description,
                 ])
 
-        self.set_status(f"Zapisano {len(self.shown_jobs)} wierszy do {path}")
+        self.set_status(f"Zapisano {len(rows)} wierszy do {path}")
 
 
 def main():
