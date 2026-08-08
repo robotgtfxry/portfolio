@@ -124,12 +124,13 @@ export default function About() {
             </motion.div>
           </div>
 
-          {/* Photo placeholder */}
+          {/* Zdjecie tylko od md w gore. Obrazek nizej nie ma `priority`, wiec
+              jest leniwy — w kontenerze display:none przegladarka go nie pobiera. */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={isInView ? { opacity: 1, scale: 1 } : {}}
             transition={{ delay: 0.5, duration: 0.8 }}
-            className="relative"
+            className="relative hidden md:block"
           >
             <div className="relative aspect-square rounded-2xl overflow-hidden electric-border">
               <div className="absolute inset-[1px] rounded-2xl overflow-hidden">
@@ -137,8 +138,8 @@ export default function About() {
                   src="/profilowe.jpg"
                   alt="Zdjęcie profilowe"
                   fill
+                  sizes="(min-width: 1216px) 544px, 45vw"
                   className="object-cover object-center"
-                  priority
                 />
               </div>
             </div>

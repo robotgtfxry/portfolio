@@ -8,6 +8,18 @@ import { allProjects, type Project as PortfolioProject } from "@/data/projects";
 const SOFTWARE_CATEGORY = "Software";
 const HOME_PROJECTS_COUNT = 3;
 
+/** Wyróżniony projekt ma stać pośrodku siatki, a nie otwierać ją z lewej. */
+function centerFeatured(projects: PortfolioProject[]): PortfolioProject[] {
+  const from = projects.findIndex((p) => p.featured);
+  const middle = Math.floor((projects.length - 1) / 2);
+  if (from === -1 || from === middle) return projects;
+
+  const reordered = [...projects];
+  const [item] = reordered.splice(from, 1);
+  reordered.splice(middle, 0, item);
+  return reordered;
+}
+
 function useScrollLock(active: boolean) {
   useEffect(() => {
     if (!active) return;
@@ -313,7 +325,9 @@ export default function Projects() {
   const softwareProjects = allProjects.filter((p) => p.category === SOFTWARE_CATEGORY);
   const featured = softwareProjects.filter((p) => p.featured);
   const nonFeatured = softwareProjects.filter((p) => !p.featured);
-  const homeProjects = [...featured, ...nonFeatured].slice(0, HOME_PROJECTS_COUNT);
+  const homeProjects = centerFeatured(
+    [...featured, ...nonFeatured].slice(0, HOME_PROJECTS_COUNT)
+  );
 
   return (
     <section id="projects" className="relative py-32 px-4">
@@ -358,6 +372,24 @@ export default function Projects() {
             />
           ))}
         </div>
+
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ delay: 0.5 }}
+          className="mt-12 text-white/40 font-mono text-sm"
+        >
+          Reszta projektów dostępna na moim{" "}
+          <a
+            href="https://github.com/robotgtfxry/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 align-middle text-neon-cyan underline underline-offset-4 decoration-neon-cyan/30 hover:text-neon-purple hover:decoration-neon-purple/50 transition-colors"
+          >
+            <GitHubIcon />
+            GitHubie
+          </a>
+        </motion.p>
       </div>
 
       {/* Portal-like modal layer */}

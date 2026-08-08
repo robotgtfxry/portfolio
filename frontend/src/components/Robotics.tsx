@@ -19,8 +19,19 @@ type Item = FolderItem & {
 
 const HARDWARE_CATEGORIES = new Set(["Robotyka", "Inżynieria", "Kosmonautyka"]);
 
+/** Wpisy, ktore maja jeszcze szablonowa tresc — nie pokazujemy ich w sekcji 05.
+ *  Dane zostaja w projects.ts, wiec sa dalej dostepne pod /projekty. */
+const PLACEHOLDER_IDS = new Set([
+  "robot-2",
+  "robot-3",
+  "robot-4",
+  "eng-mechanika",
+  "eng-elektronika",
+  "eng-automatyka",
+]);
+
 const items: Item[] = allProjects
-  .filter((p) => HARDWARE_CATEGORIES.has(p.category))
+  .filter((p) => HARDWARE_CATEGORIES.has(p.category) && !PLACEHOLDER_IDS.has(p.id))
   .map((p) => ({
     id: p.id,
     label: p.title,
@@ -43,6 +54,16 @@ const MORE_ITEM: FolderItem = {
 };
 
 const FOLDER_SIZE = 2.2;
+
+/** Etykieta linku zewnetrznego — sam host. Pelne adresy potrafia byc dluzsze
+ *  niz caly panel (np. link do artykulu prasowego z rozbudowanym slugiem). */
+function linkLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url.replace(/^https?:\/\//, "");
+  }
+}
 
 export default function Robotics() {
   const ref = useRef(null);
@@ -228,7 +249,7 @@ export default function Robotics() {
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 text-xs font-mono text-amber-400/70 hover:text-amber-400 border border-amber-400/20 hover:border-amber-400/40 bg-amber-400/5 hover:bg-amber-400/10 px-3 py-1.5 rounded-lg transition-all duration-200"
                         >
-                          {selected.url.replace("https://", "")} ↗
+                          {linkLabel(selected.url)} ↗
                         </a>
                       )}
 

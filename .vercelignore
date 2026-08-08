@@ -1,0 +1,24 @@
+# Vercel buduje tylko frontend/ (Root Directory w ustawieniach projektu).
+# UWAGA: obecnosc tego pliku wylacza domyslny fallback na .gitignore,
+# wiec node_modules i .next musza byc tu wymienione jawnie.
+
+node_modules
+.next
+out
+*.tsbuildinfo
+
+# Python — backend, scraper, TUI
+backend
+tui
+__pycache__
+venv
+.venv
+*.py
+*.db
+
+# lokalne dane i narzedzia
+.idea
+.claude
+useme_odrzucone.json
+useme_watchlist.json
+.env*

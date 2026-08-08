@@ -238,6 +238,40 @@ function ClickSpark({ children }: { children: React.ReactNode }) {
   );
 }
 
+// ── Wskazniki stanu wysylki ───────────────────────────────────────────────
+function Spinner() {
+  return (
+    <motion.svg
+      className="w-4 h-4 shrink-0"
+      viewBox="0 0 24 24"
+      fill="none"
+      animate={{ rotate: 360 }}
+      transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </motion.svg>
+  );
+}
+
+function CheckMark() {
+  return (
+    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <motion.path
+        d="M4 12.5 L9.5 18 L20 7"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+      />
+    </svg>
+  );
+}
+
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
 
 export default function Contact() {
@@ -248,10 +282,15 @@ export default function Contact() {
   const [email,   setEmail]   = useState("");
   const [message, setMessage] = useState("");
   const [status,  setStatus]  = useState<"idle" | "sending" | "ok" | "error">("idle");
+  // Zamek na ref, nie na stanie: kilka zdarzen w tym samym ticku widzialoby
+  // jeszcze stary `status` z domkniecia renderu i przepuscilo duplikaty.
+  const submitLock = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !message) return;
+    if (submitLock.current) return;
+    submitLock.current = true;
     setStatus("sending");
 
     const sessionId = sessionStorage.getItem("_pt_sid");
@@ -265,8 +304,10 @@ export default function Contact() {
       if (!res.ok) throw new Error("server error");
       setStatus("ok");
       setName(""); setEmail(""); setMessage("");
+      // Zamek zostaje zamkniety — wiadomosc juz poszla.
     } catch {
       setStatus("error");
+      submitLock.current = false; // po bledzie mozna sprobowac ponownie
     }
   };
 
@@ -368,28 +409,53 @@ export default function Contact() {
               </motion.p>
             )}
 
-            <motion.button
-              type="submit"
-              disabled={status === "sending" || status === "ok"}
-              whileHover={{ scale: status === "sending" ? 1 : 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="px-8 py-4 rounded-xl font-medium text-background cursor-pointer relative overflow-hidden group disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{
-                background: "linear-gradient(135deg, var(--neon-cyan), var(--neon-purple))",
-              }}
+            {/* Po sukcesie przycisk chowa sie razem z zajmowanym miejscem —
+                ptaszek zdazy sie pokazac dzieki opoznieniu animacji. */}
+            <motion.div
+              className="overflow-hidden"
+              initial={false}
+              animate={
+                status === "ok"
+                  ? { opacity: 0, height: 0, transition: { delay: 1.2, duration: 0.35, ease: "easeIn" } }
+                  : { opacity: 1, height: "auto", transition: { duration: 0.2 } }
+              }
+              style={{ pointerEvents: status === "ok" ? "none" : "auto" }}
             >
-              <span className="relative z-10">
-                {status === "sending" ? "Wysyłanie…" : status === "ok" ? "Wysłano ✓" : "Wyślij wiadomość →"}
-              </span>
-              <motion.div
-                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              <motion.button
+                type="submit"
+                disabled={status === "sending" || status === "ok"}
+                whileHover={{ scale: status === "idle" || status === "error" ? 1.02 : 1 }}
+                whileTap={{ scale: status === "idle" || status === "error" ? 0.98 : 1 }}
+                className="px-8 py-4 rounded-xl font-medium text-background cursor-pointer relative overflow-hidden group disabled:cursor-not-allowed"
                 style={{
-                  background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)",
-                  backgroundSize: "200% 100%",
-                  animation: "shimmer 1.5s infinite",
+                  background: "linear-gradient(135deg, var(--neon-cyan), var(--neon-purple))",
                 }}
-              />
-            </motion.button>
+              >
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  {status === "sending" ? (
+                    <>
+                      <Spinner />
+                      Wysyłanie…
+                    </>
+                  ) : status === "ok" ? (
+                    <>
+                      <CheckMark />
+                      Wysłano
+                    </>
+                  ) : (
+                    "Wyślij wiadomość →"
+                  )}
+                </span>
+                <motion.div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{
+                    background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)",
+                    backgroundSize: "200% 100%",
+                    animation: "shimmer 1.5s infinite",
+                  }}
+                />
+              </motion.button>
+            </motion.div>
           </motion.form>
         </ClickSpark>
 

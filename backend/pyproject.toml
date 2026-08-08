@@ -1,0 +1,13 @@
+# Uzywane wylacznie przez wdrozenie na Vercela (natywna obsluga FastAPI).
+# Lokalny backend dziala jak dotad: uvicorn main:app, zaleznosci z requirements.txt.
+[project]
+name = "portfolio-contact-api"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "pydantic>=2.11.0",
+]
+
+[tool.vercel]
+entrypoint = "api.contact:app"

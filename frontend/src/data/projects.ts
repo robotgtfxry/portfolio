@@ -35,7 +35,6 @@ export const allProjects: Project[] = [
     tech: ["Python", "wfb-ng", "RTL8812AU", "Raspberry Pi", "FEC", "curses"],
     status: "W trakcie",
     github: "https://github.com/Attention-link/consys",
-    featured: true,
     image: "https://opengraph.githubassets.com/1/Attention-link/consys",
   },
   {
@@ -67,8 +66,8 @@ export const allProjects: Project[] = [
       "ksef-sender to narzędzie desktopowe napisane w Pythonie z interfejsem graficznym opartym na Tkinter. Aplikacja rozwiązuje realny problem firm, które muszą dostosować się do obowiązku wystawiania e-faktur przez KSeF — Krajowy System e-Faktur Ministerstwa Finansów.\n\nGłówne funkcje:\n• Konwersja faktur z popularnych formatów do struktury XML zgodnej ze schematem FA(2) wymaganym przez KSeF\n• Wysyłka dokumentów bezpośrednio do API Ministerstwa Finansów z obsługą tokenów autoryzacyjnych\n• Walidacja faktury przed wysyłką — weryfikacja pól obowiązkowych, NIP kontrahentów i sum kontrolnych\n• Podgląd wygenerowanego XML przed wysłaniem\n• Historia wysłanych dokumentów z numerami referencyjnymi KSeF\n\nAplikacja działa w środowisku testowym (demo) oraz produkcyjnym MF. Interfejs Tkinter zapewnia prosty dostęp bez konieczności instalacji przeglądarki czy serwera — jeden plik wykonywalny.",
     tech: ["Python", "Tkinter", "KSeF API", "XML", "REST API"],
     status: "Ukończony",
-    image:
-      "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&h=400&fit=crop",
+    github: "https://github.com/robotgtfxry/ksef-sender",
+    image: "https://opengraph.githubassets.com/1/robotgtfxry/ksef-sender",
   },
   {
     id: "software-3",
@@ -95,7 +94,6 @@ export const allProjects: Project[] = [
       "Strona portfolio z efektami wizualnymi, animacjami Framer Motion, interaktywną galerią DomeGallery i ciemnym motywem neonowym. Responsywna, szybka, zoptymalizowana.",
     tech: ["Next.js", "React", "Tailwind CSS", "Framer Motion"],
     status: "W trakcie",
-    featured: true,
     image:
       "https://images.unsplash.com/photo-1547658719-da2b51169166?w=600&h=400&fit=crop",
   },
@@ -186,6 +184,22 @@ export const allProjects: Project[] = [
       "https://images.unsplash.com/photo-1535378620166-273708d44e4c?w=600&h=400&fit=crop",
   },
   // Inżynieria
+  {
+    id: "silnik-jonowy",
+    title: "Silnik jonowy",
+    emoji: "🛰️",
+    category: "Inżynieria",
+    description:
+      "Silnik jonowy dla nanosatelitów CubeSat — napęd elektrostatyczny bez paliwa chemicznego i bez części ruchomych. Zwycięski projekt VII edycji Akademii ProtoLab.",
+    details:
+      "System napędowy dla nanosatelitów klasy CubeSat, oparty na elektrostatycznym przyspieszaniu jonów gazu. Działa bez paliwa chemicznego i bez części ruchomych — stąd niska masa i wysoka niezawodność, co przy ładunkach orbitalnych, gdzie liczy się każdy gram, ma decydujące znaczenie.\n\nPrzeznaczenie: precyzyjne manewry orbitalne oraz kontrolowana deorbitacja satelity po zakończeniu misji.\n\nProjekt zrealizowany wspólnie z Aleksandrem Olberem z Politechniki Rzeszowskiej. Zwyciężył VII edycję Akademii ProtoLab — programu Podkarpackiego Centrum Innowacji, w którym nad rozwiązaniami z zakresu lotnictwa i kosmonautyki pracowało 36 uczestników. Finał odbył się 21 czerwca 2025.",
+    tech: ["CubeSat", "Napęd jonowy", "Elektrostatyka", "Nanosatelity"],
+    status: "Ukończony",
+    live: "https://rzeszow-news.pl/vii-edycja-akademii-protolab-juz-za-nami-zwyciezyl-silnik-jonowy-dla-nanosatelitow/",
+    featured: true,
+    image:
+      "https://images.unsplash.com/photo-1517976487492-5750f3195933?w=600&h=400&fit=crop",
+  },
   {
     id: "eng-mechanika",
     title: "Mechanika",

@@ -1,0 +1,10 @@
+# Na Vercela jedzie tylko api/index.py — reszta backendu zostaje lokalna.
+main.py
+db.py
+geo.py
+analytics.db
+drive_storage
+__pycache__
+*.pyc
+venv
+.venv
