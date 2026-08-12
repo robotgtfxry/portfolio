@@ -43,6 +43,14 @@ Odrzucanie ogloszen:
   jak robi to listing kategorii. Gdy strony nie da sie pobrac (404, blad sieci),
   program napisze o tym wprost i pokaze ostatnia migawke zamiast zgadywac.
 
+Oznaczenie "odpowiedziano" (Alt+O):
+  Alt+O na zaznaczonym ogloszeniu (w tabeli albo w panelu wyroznionych) albo
+  przycisk pod tabela oznacza ogloszenie na zielono - to znaczy, ze juz sie
+  zglosilismy/napisalismy do zleceniodawcy. Zapisuje sie do pliku
+  useme_odpowiedziane.json obok skryptu i przezywa restart programu.
+  Niezalezne od wyroznionych i odrzuconych - nie zdejmuje ani nie zaklada
+  tamtych oznaczen, dziala rownolegle z nimi.
+
 Uruchomienie:
     python useme_scraper.py
 
@@ -102,6 +110,10 @@ WATCHLIST_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # odrzucone ogloszenia - drugi plik obok skryptu
 REJECTED_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "useme_odrzucone.json")
+
+# oferty, na ktore juz odpowiedzielismy - trzeci plik obok skryptu
+APPLIED_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "useme_odpowiedziane.json")
 
 
 # ---------------------------------------------------------------- model
@@ -259,6 +271,22 @@ class RejectList(JsonStore):
         self.data[job.url] = {
             "title": job.title,
             "rejected": datetime.now().isoformat(timespec="seconds"),
+        }
+
+
+class AppliedList(JsonStore):
+    """Oferty, na ktore juz odpowiedzielismy/zglosilismy sie.
+
+    Niezalezne od Watchlist/RejectList - to trzeci, rownolegly znacznik.
+    """
+
+    def __init__(self, path=APPLIED_FILE):
+        super().__init__(path)
+
+    def add(self, job):
+        self.data[job.url] = {
+            "title": job.title,
+            "applied": datetime.now().isoformat(timespec="seconds"),
         }
 
 
@@ -601,6 +629,7 @@ class App(ttk.Frame):
         self.worker = None
         self.watch = Watchlist()
         self.rejected = RejectList()
+        self.applied = AppliedList()
         self.watch_note = ""     # podsumowanie zmian do paska stanu
         self.active_job = None   # to, co widac w szczegolach (tabela albo panel)
         # widoczny panel = wyroznione siedza tylko w nim, nie w glownej tabeli
@@ -613,8 +642,8 @@ class App(ttk.Frame):
         self._build_status()
         self.refresh_watch_panel()
 
-        if self.watch.error or self.rejected.error:
-            self.set_status(self.watch.error or self.rejected.error)
+        if self.watch.error or self.rejected.error or self.applied.error:
+            self.set_status(self.watch.error or self.rejected.error or self.applied.error)
 
     # ------------------------------------------------------ budowa GUI
 
@@ -643,6 +672,7 @@ class App(ttk.Frame):
         self.watch_tree.tag_configure("changed", background="#fff3bf")
         self.watch_tree.tag_configure("finished", foreground="#c0392b")
         self.watch_tree.tag_configure("stale", foreground="#8a8a8a")
+        self.watch_tree.tag_configure("applied", background="#c8f0cc")
 
         self.watch_tree.bind("<<TreeviewSelect>>", self.on_panel_select)
         self.watch_tree.bind("<Double-1>", self.open_panel_job)
@@ -650,6 +680,8 @@ class App(ttk.Frame):
         self.watch_tree.bind("<space>", self.unwatch_panel_job)
         self.watch_tree.bind("<Control-d>", self.unwatch_panel_job)
         self.watch_tree.bind("<Delete>", self.reject_panel_job)
+        self.watch_tree.bind("<Alt-o>", self.toggle_applied_panel)
+        self.watch_tree.bind("<Alt-O>", self.toggle_applied_panel)
 
         buttons = ttk.Frame(self.watch_panel)
         buttons.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(6, 0))
@@ -657,9 +689,11 @@ class App(ttk.Frame):
                    command=self.open_panel_job).grid(row=0, column=0)
         ttk.Button(buttons, text="Usun (spacja)", width=13,
                    command=self.unwatch_panel_job).grid(row=0, column=1, padx=(4, 0))
+        ttk.Button(buttons, text="Odpowiedziano (Alt+O)", width=19,
+                   command=self.toggle_applied_panel).grid(row=0, column=2, padx=(4, 0))
         ttk.Button(buttons, text="Ukryj", width=7,
                    command=lambda: self.show_watch_panel.set(False)).grid(
-            row=0, column=2, padx=(4, 0))
+            row=0, column=3, padx=(4, 0))
 
         self.show_watch_panel.trace_add("write", self._toggle_watch_panel)
 
@@ -844,6 +878,7 @@ class App(ttk.Frame):
         self.tree.tag_configure("changed", background="#fff3bf")   # cos sie zmienilo
         self.tree.tag_configure("stale", foreground="#8a8a8a")     # brak w wynikach
         self.tree.tag_configure("rejected", foreground="#b0b0b0")  # odrzucone
+        self.tree.tag_configure("applied", background="#c8f0cc")   # odpowiedziano
 
         self.tree.bind("<<TreeviewSelect>>", self.show_details)
         self.tree.bind("<Button-1>", self.on_click)
@@ -851,6 +886,8 @@ class App(ttk.Frame):
         self.tree.bind("<space>", self.toggle_watch)
         self.tree.bind("<Control-d>", self.toggle_watch)
         self.tree.bind("<Delete>", self.toggle_reject)
+        self.tree.bind("<Alt-o>", self.toggle_applied)
+        self.tree.bind("<Alt-O>", self.toggle_applied)
 
     def _build_details(self):
         box = ttk.LabelFrame(self,
@@ -879,6 +916,9 @@ class App(ttk.Frame):
         self.reject_btn = ttk.Button(buttons, text="Odrzuc / przywroc (Delete)",
                                      command=self.toggle_active_reject)
         self.reject_btn.grid(row=0, column=2, padx=(8, 0))
+        self.applied_btn = ttk.Button(buttons, text="Odpowiedziano (Alt+O)",
+                                      command=self.toggle_active_applied)
+        self.applied_btn.grid(row=0, column=3, padx=(8, 0))
 
     def _build_status(self):
         self.status = tk.StringVar(value="Gotowe. Kliknij 'Pobierz oferty'.")
@@ -1111,12 +1151,17 @@ class App(ttk.Frame):
             else:
                 tag = ""
 
+            # "applied" idzie na koncu krotki, zeby jego zielone tlo wygralo
+            # z ewentualnym zoltym tlem "changed", gdy oba pasuja naraz
+            tags = tuple(t for t in (tag, "applied" if job.url in self.applied
+                                     else None) if t)
+
             # kolumna "Obs." jest tu tylko przyciskiem: klik wyroznia i wiersz
             # znika do panelu, wiec zadne ogloszenie w tabeli nie ma gwiazdki
             self.tree.insert("", "end", iid=str(index),
                              values=("+", "+" if is_rejected else "x")
                                     + job.as_row()[:8],
-                             tags=(tag,) if tag else ())
+                             tags=tags)
 
         if select_url:
             for index, job in enumerate(self.shown_jobs):
@@ -1172,6 +1217,8 @@ class App(ttk.Frame):
                 tag = "finished"
             else:
                 tag = ""
+            tags = tuple(t for t in (tag, "applied" if job.url in self.applied
+                                     else None) if t)
             title = job.title or job.url
             if job.changes:
                 title = "! " + title
@@ -1179,7 +1226,7 @@ class App(ttk.Frame):
                 "", "end", iid=str(index),
                 values=(title, job.offers if job.offers is not None else "-",
                         panel_deadline(job)),
-                tags=(tag,) if tag else ())
+                tags=tags)
 
         self.watch_panel.configure(text=f"Wyroznione ({len(self.panel_jobs)})")
 
@@ -1309,6 +1356,32 @@ class App(ttk.Frame):
             messagebox.showwarning("Useme", error)
         return "break"
 
+    def toggle_applied(self, _event=None, job=None):
+        """Alt+O - oznacza/odznacza 'odpowiedziano' na zielono.
+
+        Niezalezne od wyroznionych i odrzuconych - nie rusza tamtych list.
+        """
+        job = job or self.selected_job() or self.active_job
+        if not job:
+            return "break"
+
+        if job.url in self.applied:
+            self.applied.remove(job.url)
+        else:
+            self.applied.add(job)
+
+        error = self.applied.save()
+        self.after_change(job.url)
+        if error:
+            messagebox.showwarning("Useme", error)
+        return "break"
+
+    def toggle_applied_panel(self, _event=None):
+        job = self.panel_job()
+        if job:
+            self.toggle_applied(job=job)
+        return "break"
+
     def after_change(self, select_url=None):
         job = self.active_job
         self.apply_filters()
@@ -1342,6 +1415,8 @@ class App(ttk.Frame):
                 self.details.insert("end", "[WYROZNIONE] ")
             if job.url in self.rejected:
                 self.details.insert("end", "[ODRZUCONE] ")
+            if job.url in self.applied:
+                self.details.insert("end", "[ODPOWIEDZIANO] ")
             self.details.insert("end", f"{job.title}\n\n")
             if job.changes:
                 self.details.insert("end", "Zmiany od ostatniego sprawdzenia:\n")
@@ -1387,6 +1462,10 @@ class App(ttk.Frame):
         if self.active_job:
             self.toggle_reject(job=self.active_job)
 
+    def toggle_active_applied(self):
+        if self.active_job:
+            self.toggle_applied(job=self.active_job)
+
     # ------------------------------------------------------ eksport
 
     def export_csv(self):
@@ -1407,13 +1486,14 @@ class App(ttk.Frame):
             writer = csv.writer(handle, delimiter=";")
             writer.writerow(["Kategoria", "Tytul", "Ofert", "Cena", "Negocjacja",
                              "Do konca", "Zleceniodawca", "Podkategoria", "Link",
-                             "Zakonczone", "Wyroznione", "Odrzucone", "Zmiany",
-                             "Opis"])
+                             "Zakonczone", "Wyroznione", "Odrzucone", "Odpowiedziano",
+                             "Zmiany", "Opis"])
             for job in rows:
                 writer.writerow(list(job.as_row()) + [
                     "tak" if job.finished else "nie",
                     "tak" if job.url in self.watch else "nie",
                     "tak" if job.url in self.rejected else "nie",
+                    "tak" if job.url in self.applied else "nie",
                     "; ".join(job.changes),
                     job.description,
                 ])
