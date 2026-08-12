@@ -43,8 +43,8 @@ Odrzucanie ogloszen:
   jak robi to listing kategorii. Gdy strony nie da sie pobrac (404, blad sieci),
   program napisze o tym wprost i pokaze ostatnia migawke zamiast zgadywac.
 
-Oznaczenie "odpowiedziano" (Alt+O):
-  Alt+O na zaznaczonym ogloszeniu (w tabeli albo w panelu wyroznionych) albo
+Oznaczenie "odpowiedziano" (o):
+  Klawisz "o" na zaznaczonym ogloszeniu (w tabeli albo w panelu wyroznionych) albo
   przycisk pod tabela oznacza ogloszenie na zielono - to znaczy, ze juz sie
   zglosilismy/napisalismy do zleceniodawcy. Zapisuje sie do pliku
   useme_odpowiedziane.json obok skryptu i przezywa restart programu.
@@ -680,8 +680,7 @@ class App(ttk.Frame):
         self.watch_tree.bind("<space>", self.unwatch_panel_job)
         self.watch_tree.bind("<Control-d>", self.unwatch_panel_job)
         self.watch_tree.bind("<Delete>", self.reject_panel_job)
-        self.watch_tree.bind("<Alt-o>", self.toggle_applied_panel)
-        self.watch_tree.bind("<Alt-O>", self.toggle_applied_panel)
+        self.watch_tree.bind("<Key-o>", self.toggle_applied_panel)
 
         buttons = ttk.Frame(self.watch_panel)
         buttons.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(6, 0))
@@ -689,7 +688,7 @@ class App(ttk.Frame):
                    command=self.open_panel_job).grid(row=0, column=0)
         ttk.Button(buttons, text="Usun (spacja)", width=13,
                    command=self.unwatch_panel_job).grid(row=0, column=1, padx=(4, 0))
-        ttk.Button(buttons, text="Odpowiedziano (Alt+O)", width=19,
+        ttk.Button(buttons, text="Odpowiedziano (o)", width=19,
                    command=self.toggle_applied_panel).grid(row=0, column=2, padx=(4, 0))
         ttk.Button(buttons, text="Ukryj", width=7,
                    command=lambda: self.show_watch_panel.set(False)).grid(
@@ -886,8 +885,7 @@ class App(ttk.Frame):
         self.tree.bind("<space>", self.toggle_watch)
         self.tree.bind("<Control-d>", self.toggle_watch)
         self.tree.bind("<Delete>", self.toggle_reject)
-        self.tree.bind("<Alt-o>", self.toggle_applied)
-        self.tree.bind("<Alt-O>", self.toggle_applied)
+        self.tree.bind("<Key-o>", self.toggle_applied)
 
     def _build_details(self):
         box = ttk.LabelFrame(self,
@@ -916,7 +914,7 @@ class App(ttk.Frame):
         self.reject_btn = ttk.Button(buttons, text="Odrzuc / przywroc (Delete)",
                                      command=self.toggle_active_reject)
         self.reject_btn.grid(row=0, column=2, padx=(8, 0))
-        self.applied_btn = ttk.Button(buttons, text="Odpowiedziano (Alt+O)",
+        self.applied_btn = ttk.Button(buttons, text="Odpowiedziano (o)",
                                       command=self.toggle_active_applied)
         self.applied_btn.grid(row=0, column=3, padx=(8, 0))
 
@@ -1129,6 +1127,12 @@ class App(ttk.Frame):
                 continue
             result.append(job)
 
+        # apply_filters biegnie tez po kazdym wyroznieniu/odrzuceniu/oznaczeniu
+        # "o" - bez tego aktywne sortowanie znikaloby przy kazdej takiej akcji
+        if self.sort_state:
+            sort_key, reverse = next(iter(self.sort_state.items()))
+            result.sort(key=self._sort_key_func(sort_key), reverse=reverse)
+
         self.shown_jobs = result
         self.refresh_table()
 
@@ -1262,10 +1266,7 @@ class App(ttk.Frame):
             self.toggle_reject(job=job)
         return "break"
 
-    def sort_by(self, key):
-        reverse = not self.sort_state.get(key, False)
-        self.sort_state = {key: reverse}
-
+    def _sort_key_func(self, key):
         def sort_key(job):
             if key == "watch":
                 return int(job.url in self.watch)
@@ -1278,8 +1279,12 @@ class App(ttk.Frame):
             if key == "negotiable":
                 return int(bool(job.negotiable))
             return (getattr(job, key, "") or "").lower()
+        return sort_key
 
-        self.shown_jobs.sort(key=sort_key, reverse=reverse)
+    def sort_by(self, key):
+        reverse = not self.sort_state.get(key, False)
+        self.sort_state = {key: reverse}
+        self.shown_jobs.sort(key=self._sort_key_func(key), reverse=reverse)
         self.refresh_table()
 
     # ------------------------------------------------------ szczegoly
@@ -1357,7 +1362,7 @@ class App(ttk.Frame):
         return "break"
 
     def toggle_applied(self, _event=None, job=None):
-        """Alt+O - oznacza/odznacza 'odpowiedziano' na zielono.
+        """Klawisz "o" - oznacza/odznacza 'odpowiedziano' na zielono.
 
         Niezalezne od wyroznionych i odrzuconych - nie rusza tamtych list.
         """
