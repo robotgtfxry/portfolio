@@ -21,7 +21,7 @@ type TimelineItem = {
 const timeline: TimelineItem[] = [
   {
     type: "role",
-    title: "Chief Engineer",
+    title: "Hardware Engineer",
     org: "Attention Link",
     url: "https://attention-link.com",
     period: "obecnie",

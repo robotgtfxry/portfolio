@@ -67,7 +67,7 @@ export default function About() {
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-neon-purple/30 bg-neon-purple/5 text-neon-purple text-sm font-mono hover:bg-neon-purple/10 transition-colors"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-neon-purple animate-pulse" />
-                Chief Engineer @ Attention Link
+                Hardware Engineer @ Attention Link
               </a>
               <a
                 href="https://revdu.com"
