@@ -9,6 +9,7 @@ import logging
 import os
 import secrets
 import smtplib
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -17,8 +18,9 @@ from typing import Any
 
 from fastapi import FastAPI, Request, Header, HTTPException, UploadFile, File, Cookie
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from pydantic import BaseModel, EmailStr
+from fastapi.responses import FileResponse, RedirectResponse
+from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic.alias_generators import to_camel
 
 from db import (
     init_db, upsert_session, update_activity,
@@ -28,6 +30,32 @@ from db import (
     save_contact, mark_email_sent, get_contacts,
 )
 from geo import get_geo, extract_ip
+
+
+def _load_env_file() -> None:
+    """Na Vercelu zmienne daje platforma, lokalnie nie ustawia ich nikt — wiec
+    dociagamy backend/.env.local. Prawdziwe srodowisko ma pierwszenstwo.
+    Musi wykonac sie przed importem link, bo tamten czyta LINK_SECRET od razu."""
+    env_file = Path(__file__).parent / ".env.local"
+    if not env_file.is_file():
+        return
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+_load_env_file()
+
+# api/link.py jedzie na Vercela jako osobna funkcja, ale format tokenu i tresc
+# powiadomienia maja byc jedne — lokalny serwer podpina ten sam modul zamiast
+# hodowac wlasna kopie.
+sys.path.insert(0, str(Path(__file__).parent / "api"))
+from link import (  # noqa: E402
+    OpenPayload, client_ip, geo_from_headers, notify, read_token, target_of,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("portfolio")
@@ -72,7 +100,56 @@ NOTIFY_EMAIL  = os.getenv("NOTIFY_EMAIL",  "mijaksan@gmail.com")
 _smtp_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="smtp")
 
 
-def _smtp_send(name: str, email: str, message: str) -> bool:
+def _duration(ms: int | None) -> str | None:
+    if not ms or ms < 0:
+        return None
+    seconds = ms // 1000
+    return f"{seconds // 60} min {seconds % 60} s" if seconds >= 60 else f"{seconds} s"
+
+
+def _visitor_rows(payload: "ContactPayload", ip: str, geo: dict, user_agent: str) -> list[tuple[str, str]]:
+    """Tabelka "kto pisal" doklejana do maila. Ten sam uklad co w api/contact.py,
+    tylko geolokalizacja idzie z ip-api zamiast z naglowkow Vercela."""
+    from datetime import datetime
+
+    visitor = payload.visitor
+    place = ", ".join(p for p in (geo.get("city"), geo.get("country")) if p)
+
+    rows: list[tuple[str, str]] = [
+        ("Wyslano",     datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+        ("IP",          ip or "nieznane"),
+        ("Lokalizacja", place or "nieznana"),
+        ("Dostawca",    geo.get("isp") or "nieznany"),
+        ("Urzadzenie",  user_agent or "nieznane"),
+    ]
+
+    if visitor:
+        pairs: list[tuple[str, str | None]] = [
+            ("Jezyk",           visitor.language),
+            ("Strefa czasowa",  visitor.timezone),
+            ("Ekran",           visitor.screen),
+            ("Skad wszedl",     visitor.referer or "wejscie bezposrednie"),
+            ("Weszla na",       visitor.landing),
+            ("Czas na stronie", _duration(visitor.total_time)),
+            ("Klikniecia",      str(visitor.clicks) if visitor.clicks is not None else None),
+            ("Przewiniete",     f"{visitor.max_scroll}%" if visitor.max_scroll is not None else None),
+        ]
+        rows += [(label, value) for label, value in pairs if value]
+
+        seen = sorted(visitor.sections, key=lambda s: s.time_spent, reverse=True)
+        seen = [s for s in seen if s.time_spent >= 1000]
+        if seen:
+            rows.append(("Ogladal", ", ".join(f"{s.name} ({_duration(s.time_spent)})" for s in seen[:8])))
+        if visitor.fingerprint:
+            rows.append(("Odcisk przegladarki", visitor.fingerprint))
+
+    if payload.session_id:
+        rows.append(("Sesja", payload.session_id))
+
+    return rows
+
+
+def _smtp_send(name: str, email: str, message: str, details: list[tuple[str, str]]) -> bool:
     """Blocking SMTP call — runs in a thread pool, never in the event loop."""
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"Nowa wiadomosc od {name} - Portfolio"
@@ -84,7 +161,15 @@ def _smtp_send(name: str, email: str, message: str) -> bool:
         f"Imie:    {name}\n"
         f"Email:   {email}\n\n"
         f"Wiadomosc:\n{message}\n\n"
-        f"---\nWyslane przez formularz kontaktowy portfolio."
+        f"--- Kto pisal ---\n"
+        + "".join(f"{label + ':':<20}{value}\n" for label, value in details)
+        + f"\n---\nWyslane przez formularz kontaktowy portfolio."
+    )
+    rows_html = "".join(
+        f'<tr><td style="color:#888;padding:3px 14px 3px 0;white-space:nowrap;'
+        f'vertical-align:top">{label}</td>'
+        f'<td style="padding:3px 0;word-break:break-word">{value}</td></tr>'
+        for label, value in details
     )
     html = f"""<html><body style="font-family:sans-serif;padding:24px">
   <h2 style="color:#00aaff">Nowa wiadomosc z portfolio</h2>
@@ -97,6 +182,9 @@ def _smtp_send(name: str, email: str, message: str) -> bool:
   <div style="margin-top:16px;padding:16px;border-left:3px solid #aa00ff">
     <p style="white-space:pre-wrap">{message}</p>
   </div>
+  <h3 style="color:#888;font-size:13px;text-transform:uppercase;letter-spacing:1px;
+             margin:28px 0 8px">Kto pisal</h3>
+  <table style="font-size:13px;border-collapse:collapse">{rows_html}</table>
 </body></html>"""
 
     msg.attach(MIMEText(plain, "plain", "utf-8"))
@@ -114,11 +202,12 @@ def _smtp_send(name: str, email: str, message: str) -> bool:
     return True
 
 
-async def send_notification_email(name: str, email: str, message: str) -> bool:
+async def send_notification_email(name: str, email: str, message: str,
+                                  details: list[tuple[str, str]] | None = None) -> bool:
     """Async wrapper — offloads blocking SMTP to thread pool."""
     loop = asyncio.get_event_loop()
     try:
-        await loop.run_in_executor(_smtp_executor, _smtp_send, name, email, message)
+        await loop.run_in_executor(_smtp_executor, _smtp_send, name, email, message, details or [])
         logger.info("Email wyslany do %s (nadawca: %s)", NOTIFY_EMAIL, email)
         return True
     except Exception as exc:
@@ -140,15 +229,27 @@ init_db()
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
+# Tracker w przegladarce mowi camelCase (sessionId, totalTime, maxScroll),
+# a modele tutaj snake_case. Bez tego aliasu kazdy beacon konczyl sie 422 i do
+# bazy nie trafialo nic poza recznie wolanymi zadaniami.
+_camel = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+
 class SectionPayload(BaseModel):
+    model_config = _camel
+
     name: str
     time_spent: int = 0
 
 class EventPayload(BaseModel):
+    model_config = _camel
+
     type: str
     data: Any = None
 
 class TrackPayload(BaseModel):
+    model_config = _camel
+
     type: str                          # init | activity | leave
     session_id: str
     # init fields
@@ -165,11 +266,26 @@ class TrackPayload(BaseModel):
     sections: list[SectionPayload] = []
     events: list[EventPayload] = []
 
+class VisitorPayload(BaseModel):
+    """Migawka z Trackera — to samo cialo, co przyjmuje api/contact.py."""
+    fingerprint: str | None = None
+    language: str | None = None
+    timezone: str | None = None
+    screen: str | None = None
+    referer: str | None = None
+    landing: str | None = None
+    total_time: int | None = None
+    clicks: int | None = None
+    max_scroll: int | None = None
+    sections: list[SectionPayload] = []
+
+
 class ContactPayload(BaseModel):
     session_id: str | None = None
     name: str
     email: str
     message: str
+    visitor: VisitorPayload | None = None
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -221,7 +337,7 @@ async def track(payload: TrackPayload, request: Request):
 
 
 @app.post("/contact")
-async def contact(payload: ContactPayload):
+async def contact(payload: ContactPayload, request: Request):
     if not payload.name.strip() or not payload.email.strip() or not payload.message.strip():
         raise HTTPException(status_code=422, detail="Wypełnij wszystkie pola")
 
@@ -232,7 +348,10 @@ async def contact(payload: ContactPayload):
         message=payload.message.strip(),
     )
 
-    ok = await send_notification_email(payload.name, payload.email, payload.message)
+    ip = extract_ip(dict(request.headers), request.client.host if request.client else None)
+    details = _visitor_rows(payload, ip, await get_geo(ip), request.headers.get("user-agent", ""))
+
+    ok = await send_notification_email(payload.name, payload.email, payload.message, details)
     if ok:
         mark_email_sent(contact_id)
 
@@ -265,6 +384,42 @@ async def admin_session(session_id: str, x_admin_token: str | None = Header(None
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# ── Linki specjalne ──────────────────────────────────────────────────────────
+#
+# Te same trasy co na produkcji (api/link.py), podpiete lokalnie, zeby dalo sie
+# przetestowac caly przebieg /l/<token> bez deployu.
+
+def _visitor_from_request(request: Request, payload: OpenPayload | None = None) -> dict:
+    country, city = geo_from_headers(request.headers)
+    fallback_ip = request.client.host if request.client else None
+    return {
+        "ip":         (payload.ip if payload else None) or client_ip(request.headers, fallback_ip),
+        "user_agent": (payload.user_agent if payload else None) or request.headers.get("user-agent"),
+        "referer":    (payload.referer if payload else None) or request.headers.get("referer"),
+        "language":   (payload.language if payload else None) or request.headers.get("accept-language"),
+        "country":    (payload.country if payload else None) or country,
+        "city":       (payload.city if payload else None) or city,
+    }
+
+
+@app.get("/link")
+@app.get("/api/link")
+async def link_open(request: Request, t: str | None = None):
+    if not t:
+        raise HTTPException(status_code=404, detail="Nieprawidłowy link")
+    data = read_token(t)
+    notify(data, _visitor_from_request(request))
+    return RedirectResponse(url=target_of(data), status_code=302)
+
+
+@app.post("/link")
+@app.post("/api/link")
+async def link_open_post(payload: OpenPayload, request: Request):
+    data = read_token(payload.token)
+    notify(data, _visitor_from_request(request, payload))
+    return {"ok": True, "url": target_of(data)}
 
 
 # ── Drive ────────────────────────────────────────────────────────────────────

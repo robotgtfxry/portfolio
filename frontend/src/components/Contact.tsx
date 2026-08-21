@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import { motion, useInView } from "framer-motion";
+import { getVisitorSnapshot } from "./Tracker";
 
 // ── Rising Lines canvas background ────────────────────────────────────────
 function RisingLines() {
@@ -293,13 +294,17 @@ export default function Contact() {
     submitLock.current = true;
     setStatus("sending");
 
-    const sessionId = sessionStorage.getItem("_pt_sid");
+    // Migawka z Trackera dojezdza do maila razem z wiadomoscia. Gdy tracker nie
+    // wystartowal (blokada skryptow, wejscie z podstrony bez niego) leci null —
+    // backend dolozy wtedy tylko to, co widzi z naglowkow.
+    const visitor = getVisitorSnapshot();
+    const sessionId = visitor?.session_id ?? sessionStorage.getItem("_pt_sid");
 
     try {
       const res = await fetch(`${BACKEND}/contact`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ session_id: sessionId, name, email, message }),
+        body:    JSON.stringify({ session_id: sessionId, name, email, message, visitor }),
       });
       if (!res.ok) throw new Error("server error");
       setStatus("ok");

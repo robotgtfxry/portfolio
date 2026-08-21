@@ -117,6 +117,32 @@ const SECTION_SELECTORS: Record<string, string> = {
   contact: '#contact',
 };
 
+// ── Migawka dla formularza kontaktowego ──────────────────────────────────────
+//
+// Backend widzi tylko naglowki HTTP, wiec sam nie dowie sie, ile ktos czytal ani
+// ktore sekcje ogladal. Tracker i tak to zbiera — udostepniamy odczyt na
+// zadanie, zeby Contact.tsx mogl dolaczyc te dane do wysylanej wiadomosci.
+
+export type VisitorSnapshot = {
+  session_id: string;
+  fingerprint: string | null;
+  language: string;
+  timezone: string;
+  screen: string;
+  referer: string | null;
+  landing: string;
+  total_time: number;
+  clicks: number;
+  max_scroll: number;
+  sections: Array<{ name: string; time_spent: number }>;
+};
+
+let readSnapshot: (() => VisitorSnapshot) | null = null;
+
+export function getVisitorSnapshot(): VisitorSnapshot | null {
+  return readSnapshot ? readSnapshot() : null;
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Tracker() {
@@ -162,6 +188,23 @@ export default function Tracker() {
 
     // ── Init beacon ─────────────────────────────────────────────────────────
     const fingerprint = buildFingerprint();
+
+    readSnapshot = () => ({
+      session_id:  sessionId.current,
+      fingerprint,
+      language:    navigator.language,
+      timezone:    Intl.DateTimeFormat().resolvedOptions().timeZone,
+      screen:      `${screen.width}x${screen.height}`,
+      referer:     document.referrer || null,
+      landing:     location.pathname + location.search,
+      total_time:  Date.now() - startTime.current,
+      clicks:      clicks.current,
+      max_scroll:  maxScroll.current,
+      sections: [...sectionsRef.current.values()].map((s) => ({
+        name: s.name,
+        time_spent: s.timeSpent + (s.enteredAt > 0 ? Date.now() - s.enteredAt : 0),
+      })),
+    });
 
     send({
       type: 'init',
@@ -236,6 +279,7 @@ export default function Tracker() {
     });
 
     return () => {
+      readSnapshot = null;
       document.removeEventListener('click', onClickCapture);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('beforeunload', onLeave);

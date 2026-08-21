@@ -2,6 +2,9 @@
   "functions": {
     "api/contact.py": {
       "maxDuration": 30
+    },
+    "api/link.py": {
+      "maxDuration": 30
     }
   }
 }

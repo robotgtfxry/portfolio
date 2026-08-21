@@ -1,4 +1,4 @@
-# Na Vercela jedzie tylko api/index.py — reszta backendu zostaje lokalna.
+# Na Vercela jada tylko funkcje z api/ — reszta backendu zostaje lokalna.
 main.py
 db.py
 geo.py

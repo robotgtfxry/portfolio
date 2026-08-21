@@ -21,4 +21,5 @@ venv
 .claude
 useme_odrzucone.json
 useme_watchlist.json
+useme_scraper.py
 .env*
