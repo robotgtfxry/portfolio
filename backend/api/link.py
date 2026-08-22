@@ -67,6 +67,18 @@ app = FastAPI(title="Portfolio Links", docs_url=None, redoc_url=None)
 _NONCE_LEN = 6
 _TAG_LEN   = 12
 
+# Krotkie linki nazwane — do miejsc publicznych (LinkedIn, wizytowka, stopka),
+# gdzie dlugi token wyglada obco. Etykieta siedzi tutaj w kodzie, a nie
+# w adresie, wiec link moze byc dowolnie krotki: /l/li albo ?ref=li.
+#
+# Nie sa szyfrowane ani podpisane, bo nie maja czego chronic — a to znaczy, ze
+# kazdy, kto raz zobaczyl taki adres, moze go otworzyc ponownie i wywolac
+# kolejne powiadomienie. Do linkow wysylanych konkretnym osobom sluzy
+# make_link.py, ktory generuje tokeny jednorazowe co do etykiety.
+NAMED_LINKS: dict[str, str] = {
+    "li": "LinkedIn",
+}
+
 
 def b64e(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
@@ -110,6 +122,12 @@ def make_token(label: str, url: str | None, secret: str, expires_at: int | None 
 def read_token(token: str) -> dict:
     """Sprawdza tag i waznosc, potem odszyfrowuje. Kazdy blad daje ten sam
     komunikat — odpowiedz nie ma prawa zdradzac, na czym token polegl."""
+    # Linki nazwane rozstrzygamy przed kryptografia: nie maja tokenu, wiec nie
+    # potrzebuja tez sekretu i dzialaja nawet bez LINK_SECRET.
+    named = NAMED_LINKS.get(token.strip().lower())
+    if named:
+        return {"l": named, "public": True}
+
     if not LINK_SECRET:
         logger.error("Brak LINK_SECRET — linki specjalne sa wylaczone.")
         raise HTTPException(status_code=503, detail="Linki chwilowo niedostępne")
@@ -264,6 +282,12 @@ def notify(data: dict, visitor: dict) -> None:
     rows = [
         ("Etykieta",    str(data.get("l"))),
         ("Otwarto",     now_local()),
+    ]
+    # Bez tego latwo pomylic oba rodzaje: otwarcie linku osobistego znaczy "ta
+    # konkretna osoba kliknela", a publicznego tylko "ktos z LinkedIna wszedl".
+    if data.get("public"):
+        rows.append(("Rodzaj", "link publiczny — może kliknąć każdy"))
+    rows += [
         ("IP",          visitor.get("ip") or "nieznane"),
         ("Lokalizacja", place or "nieznana"),
         ("Urządzenie",  visitor.get("user_agent") or "nieznane"),
@@ -342,9 +366,19 @@ async def _open_post(payload: OpenPayload, request: Request):
     return {"ok": True, "url": target_of(data)}
 
 
-app.get("/link/health")(_health)
-app.get("/api/link/health")(_health)
+def register(app: FastAPI) -> None:
+    """Podpina trasy linkow do podanej aplikacji.
 
-for _path in ("/link", "/api/link"):
-    app.get(_path)(_open_get)
-    app.post(_path)(_open_post)
+    Vercel z presetem FastAPI serwuje JEDNA aplikacje pod wszystkimi sciezkami —
+    ten plik nie staje sie osobna funkcja i sam z siebie nie zostalby nigdy
+    wywolany na produkcji. Dlatego trasy montuje api/contact.py na swoim
+    obiekcie app, a to samo wywolanie robi lokalny main.py.
+    """
+    app.get("/link/health")(_health)
+    app.get("/api/link/health")(_health)
+    for path in ("/link", "/api/link"):
+        app.get(path)(_open_get)
+        app.post(path)(_open_post)
+
+
+register(app)

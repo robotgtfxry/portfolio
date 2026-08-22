@@ -18,7 +18,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request, Header, HTTPException, UploadFile, File, Cookie
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, EmailStr
 from pydantic.alias_generators import to_camel
 
@@ -49,13 +49,10 @@ def _load_env_file() -> None:
 
 _load_env_file()
 
-# api/link.py jedzie na Vercela jako osobna funkcja, ale format tokenu i tresc
-# powiadomienia maja byc jedne — lokalny serwer podpina ten sam modul zamiast
-# hodowac wlasna kopie.
+# Obsluga linkow specjalnych siedzi w api/link.py — jeden modul dla produkcji
+# i dla lokalnego serwera, zeby format tokenu nie mogl sie rozjechac.
 sys.path.insert(0, str(Path(__file__).parent / "api"))
-from link import (  # noqa: E402
-    OpenPayload, client_ip, geo_from_headers, notify, read_token, target_of,
-)
+from link import register as register_link_routes  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("portfolio")
@@ -388,38 +385,10 @@ async def health():
 
 # ── Linki specjalne ──────────────────────────────────────────────────────────
 #
-# Te same trasy co na produkcji (api/link.py), podpiete lokalnie, zeby dalo sie
-# przetestowac caly przebieg /l/<token> bez deployu.
+# Te same trasy co na produkcji — obsluga siedzi w api/link.py, a tutaj tylko
+# ja montujemy, zeby dalo sie przetestowac przebieg /l/<token> bez deployu.
 
-def _visitor_from_request(request: Request, payload: OpenPayload | None = None) -> dict:
-    country, city = geo_from_headers(request.headers)
-    fallback_ip = request.client.host if request.client else None
-    return {
-        "ip":         (payload.ip if payload else None) or client_ip(request.headers, fallback_ip),
-        "user_agent": (payload.user_agent if payload else None) or request.headers.get("user-agent"),
-        "referer":    (payload.referer if payload else None) or request.headers.get("referer"),
-        "language":   (payload.language if payload else None) or request.headers.get("accept-language"),
-        "country":    (payload.country if payload else None) or country,
-        "city":       (payload.city if payload else None) or city,
-    }
-
-
-@app.get("/link")
-@app.get("/api/link")
-async def link_open(request: Request, t: str | None = None):
-    if not t:
-        raise HTTPException(status_code=404, detail="Nieprawidłowy link")
-    data = read_token(t)
-    notify(data, _visitor_from_request(request))
-    return RedirectResponse(url=target_of(data), status_code=302)
-
-
-@app.post("/link")
-@app.post("/api/link")
-async def link_open_post(payload: OpenPayload, request: Request):
-    data = read_token(payload.token)
-    notify(data, _visitor_from_request(request, payload))
-    return {"ok": True, "url": target_of(data)}
+register_link_routes(app)
 
 
 # ── Drive ────────────────────────────────────────────────────────────────────

@@ -5,9 +5,10 @@ Swiadomie nie importuje main.py ani db.py: tamten kod przy imporcie wola
 init_db(), ktore pisze do SQLite, a system plikow funkcji jest tylko do
 odczytu. Analytics i /drive zostaja na lokalnym backendzie.
 
-Routing: plik api/contact.py odpowiada URL-owi /api/contact (routing plikowy
-Vercela). Trasy sa zarejestrowane pod obiema sciezkami, zeby nie zalezec od
-tego, czy platforma poda funkcji sciezke z prefiksem /api czy bez.
+Routing: Vercel z presetem FastAPI serwuje TA JEDNA aplikacje pod wszystkimi
+sciezkami — kolejne pliki w api/ nie staja sie osobnymi funkcjami. Dlatego
+wszystkie trasy (takze linkow specjalnych z link.py) musza wisiec na obiekcie
+app z tego pliku, a kazda jest zarejestrowana pod wersja z prefiksem /api i bez.
 
 Sekrety czytane sa wylacznie ze zmiennych srodowiskowych. Brak fallbacku
 na wartosci wpisane w kod — bez SMTP_PASSWORD endpoint zwraca 503.
@@ -17,14 +18,22 @@ import html
 import logging
 import os
 import smtplib
+import sys
 from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from pathlib import Path
 from urllib.parse import unquote
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+# Vercel z presetem FastAPI serwuje JEDNA aplikacje pod wszystkimi sciezkami —
+# api/link.py nie staje sie osobna funkcja, wiec jego trasy trzeba podpiac pod
+# ten sam obiekt app (na dole pliku). Bez tego /api/link odpowiada 404.
+sys.path.insert(0, str(Path(__file__).parent))
+from link import register as register_link_routes  # noqa: E402
 
 logger = logging.getLogger("contact-api")
 
@@ -255,3 +264,5 @@ app.get("/health")(_health)
 for _path in ("/contact", "/api/contact"):
     app.get(_path)(_health)
     app.post(_path)(_contact)
+
+register_link_routes(app)

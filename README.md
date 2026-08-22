@@ -82,5 +82,22 @@ Przydatne opcje: `--url` (dokąd ma trafić klikający), `--days N` (po ilu dnia
 link przestaje działać), `--base` (domena frontu), `--style path` (jawny format).
 Stan konfiguracji sprawdzisz pod `/api/link/health`.
 
+### Krótkie linki do miejsc publicznych
+
+Do profilu na LinkedInie czy stopki w mailu token jest za długi, więc etykieta
+może siedzieć w kodzie — w słowniku `NAMED_LINKS` w `backend/api/link.py`:
+
+```python
+NAMED_LINKS = {
+    "li": "LinkedIn",
+}
+```
+
+Daje to `https://twoja-domena/?ref=li` (parametr znika po wejściu) albo
+`https://twoja-domena/l/li`. Mail przychodzi z etykietą `LinkedIn` i adnotacją,
+że to link publiczny — bo w odróżnieniu od linku wysłanego jednej osobie
+oznacza tylko „ktoś wszedł stamtąd", a nie „ta osoba kliknęła". Taki skrót jest
+zgadywalny i nie wygasa: kto raz go zobaczył, może wywołać kolejne powiadomienia.
+
 Generator działa wyłącznie lokalnie — liczy token z sekretu na dysku i z niczym
 się nie łączy. Vercel jest bezserwerowy, nie ma tam czego logować się po SSH.
