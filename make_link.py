@@ -84,7 +84,7 @@ def build_link(label: str, url: str | None, days: int | None,
     return f"{base}/l/{make_token(label, url, secret, expires_at)}"
 
 
-# ── Okno ──────────────────────────────────────────────────────────────────────
+# ── Window ──────────────────────────────────────────────────────────────────────
 
 def run_gui() -> int:
     try:
