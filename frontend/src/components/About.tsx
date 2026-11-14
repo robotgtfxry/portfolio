@@ -81,6 +81,9 @@ export default function About() {
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-neon-purple/30 bg-neon-purple/5 text-neon-purple text-sm font-mono">
                 Hackathon Mentor
               </span>
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-neon-pink/30 bg-neon-pink/5 text-neon-pink text-sm font-mono">
+                📻 SP8DEV
+              </span>
             </motion.div>
 
             <div className="space-y-6 text-white/60 text-lg leading-relaxed">
@@ -100,7 +103,8 @@ export default function About() {
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ delay: 0.6, duration: 0.6 }}
               >
-                Każdy projekt to dla mnie okazja do nauki i przesuwania granic tego, co możliwe. Interesuję się nowymi technologiami i zawsze szukam kreatywnych rozwiązań.
+                Każdy projekt to dla mnie okazja do nauki i przesuwania granic tego, co możliwe. Interesuję się nowymi technologiami i zawsze szukam kreatywnych rozwiązań. Po godzinach jestem krótkofalowcem — nadaję pod znakiem{" "}
+                <span className="text-neon-pink font-mono">SP8DEV</span>.
               </motion.p>
             </div>
 

@@ -5,8 +5,8 @@ import { motion, useInView, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { allProjects, type Project as PortfolioProject } from "@/data/projects";
 
-const SOFTWARE_CATEGORY = "Software";
-const HOME_PROJECTS_COUNT = 3;
+/** Projekty pokazywane na stronie glownej, w tej kolejnosci (wyrozniony i tak trafia na srodek). */
+const HOME_PROJECT_IDS = ["consys", "revdu", "pcb-wizytowka"];
 
 /** Wyróżniony projekt ma stać pośrodku siatki, a nie otwierać ją z lewej. */
 function centerFeatured(projects: PortfolioProject[]): PortfolioProject[] {
@@ -322,11 +322,10 @@ export default function Projects() {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const [selected, setSelected] = useState<PortfolioProject | null>(null);
 
-  const softwareProjects = allProjects.filter((p) => p.category === SOFTWARE_CATEGORY);
-  const featured = softwareProjects.filter((p) => p.featured);
-  const nonFeatured = softwareProjects.filter((p) => !p.featured);
   const homeProjects = centerFeatured(
-    [...featured, ...nonFeatured].slice(0, HOME_PROJECTS_COUNT)
+    HOME_PROJECT_IDS.map((id) => allProjects.find((p) => p.id === id)).filter(
+      (p): p is PortfolioProject => p !== undefined
+    )
   );
 
   return (

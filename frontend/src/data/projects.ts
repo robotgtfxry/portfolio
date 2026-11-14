@@ -201,6 +201,55 @@ export const allProjects: Project[] = [
       "https://images.unsplash.com/photo-1517976487492-5750f3195933?w=600&h=400&fit=crop",
   },
   {
+    id: "konstelacja-dronow",
+    title: "Konstelacja dronów",
+    emoji: "🛸",
+    category: "Robotyka",
+    description:
+      "Miniprojekt badawczy w konkursie „Naukolatek – Nastoletni Naukowiec” Politechnicznej Sieci Via Carpatia, realizowany z Politechniką Rzeszowską — drony latające w formacji i wymieniające dane między sobą bez wsparcia pilota.",
+    details:
+      "Konstelacja dronów to projekt badawczy, który realizowałem w latach 2024–2025 w ramach konkursu „Naukolatek – Nastoletni Naukowiec”.\n\nKonkurs organizuje Politechniczna Sieć Via Carpatia im. Prezydenta RP Lecha Kaczyńskiego — porozumienie Politechniki Białostockiej, Lubelskiej i Rzeszowskiej. Zespoły uczniów szkół średnich przechodzą etap regionalny, a najlepsze dostają finansowanie na realizację własnego miniprojektu badawczego. Na Podkarpaciu konkurs prowadzi Politechnika Rzeszowska.\n\nProjekt dotyczył konstelacji dronów — grupy maszyn działających razem jako jeden system, a nie pojedynczych, niezależnych lotów:\n• Lot w formacji — drony utrzymywały wspólny szyk w powietrzu\n• Wymiana danych między dronami — maszyny przekazywały sobie informacje bezpośrednio\n• Autonomia — całość działała bez wsparcia pilota",
+    summary:
+      "Miniprojekt badawczy w konkursie „Naukolatek – Nastoletni Naukowiec” Politechnicznej Sieci Via Carpatia, realizowany z Politechniką Rzeszowską w latach 2024–2025.\n\nDrony latały w formacji i przekazywały dane między sobą — bez wsparcia pilota.",
+    tech: ["Drony", "Naukolatek", "Via Carpatia", "Politechnika Rzeszowska"],
+    status: "Ukończony",
+    image:
+      "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=600&h=400&fit=crop",
+  },
+  {
+    id: "pcb-wizytowka",
+    title: "PCB wizytówka",
+    emoji: "💳",
+    category: "Inżynieria",
+    description:
+      "Wizytówka z płytki PCB w formacie karty płatniczej — ekran ze 128 diod LED, mikrokontroler CH32V003 i bateria CR2032 trzymana przez język wycięty w samej płytce.",
+    details:
+      "Wizytówka w formacie karty ISO (85,6 × 54 mm) z laminatu FR4 o grubości 0,8 mm, z czarną matową maską i złoconymi padami (ENIG).\n\nFront:\n• Ekran 16 × 8 ze 128 diod LED 0603, każda obrócona o 45°, w rastrze 2,54 mm\n• Dwa super płaskie przyciski A/B o wysokości 0,35 mm\n\nTył:\n• Mikrokontroler CH32V003 (RISC-V) sterujący całą matrycą przez charlieplexing — 12 linii obsługuje 128 diod\n• Zabezpieczenie przed odwrotnym włożeniem baterii (P-MOSFET) i pady pogo do programowania przez SWIO\n• Pobór w uśpieniu ok. 10 µA, więc wyłącznik nie jest potrzebny\n\nUchwyt baterii bez koszyka: CR2032 trzyma widelec z jednym językiem wyciętym w samej karcie. Język jest zwężany, żeby odkształcenie rozkładało się na całą długość — szacowane odkształcenie laminatu to ok. 0,91% przy docisku ok. 8,7 N. Grubość 0,8 mm wybrałem właśnie dlatego: przy 1,6 mm tak krótki język by pękał.\n\nDetale wizualne: wylewki masy mają wzór Seigaiha (japońskie łuski fal) widoczny pod maską, a krawędź obiega odkryty pierścień miedzi z płotem przelotek, jak w układach w.cz.",
+    summary:
+      "Wizytówka z płytki PCB w formacie karty ISO: ekran 16 × 8 ze 128 diod LED sterowany przez CH32V003 metodą charlieplexingu i bateria CR2032 trzymana przez sprężysty język wycięty w samej płytce.",
+    tech: ["KiCad", "CH32V003", "RISC-V", "Charlieplexing", "Python", "PCB Design"],
+    status: "W trakcie",
+    github: "https://github.com/robotgtfxry/PCB-wizytowka",
+    image: "/projects/pcb-wizytowka.png",
+    imageFit: "contain",
+    imageBg: "#ffffff",
+  },
+  {
+    id: "meshtastic",
+    title: "Meshtastic",
+    emoji: "📶",
+    category: "Inżynieria",
+    description:
+      "Projekt oparty na Meshtastic — sieć mesh na radiach LoRa, w której węzły przekazują sobie wiadomości bez internetu i sieci komórkowej.",
+    details:
+      "Meshtastic to otwarte oprogramowanie, które z modułów LoRa tworzy sieć typu mesh. Każdy węzeł odbiera wiadomości i przekazuje je dalej, więc zasięg sieci rośnie z każdym nowym urządzeniem — bez internetu, sieci komórkowej i centralnego serwera.",
+    tech: ["Meshtastic", "LoRa", "Sieci mesh", "Radio"],
+    status: "W trakcie",
+    image: "/projects/meshtastic.svg",
+    imageFit: "contain",
+    imageBg: "#0a0a0f",
+  },
+  {
     id: "eng-mechanika",
     title: "Mechanika",
     emoji: "📐",
@@ -287,7 +336,38 @@ export const allProjects: Project[] = [
     image:
       "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=600&h=400&fit=crop",
   },
+  {
+    id: "raketon",
+    title: "Raketon.space",
+    emoji: "🚀",
+    category: "Kosmonautyka",
+    description:
+      "Klub modelarski, w którym budujemy rakiety — pierwsza już poleciała, z bocznym systemem odzysku, mikrokontrolerami i wektorowaniem ciągu.",
+    details:
+      "Raketon.space to mój klub modelarski, w którym projektujemy i budujemy rakiety.\n\nPierwsza z nich ma już za sobą lot. Na pokładzie:\n• Boczny system odzysku — spadochron wyrzucany z boku kadłuba\n• Mikrokontrolery sterujące elektroniką pokładową\n• Wektorowanie ciągu (TVC) — sterowanie kierunkiem ciągu silnika w trakcie lotu\n\nPracujemy nad kolejnymi konstrukcjami.",
+    summary:
+      "Klub modelarski, w którym budujemy rakiety. Pierwsza już poleciała — z bocznym systemem odzysku, mikrokontrolerami na pokładzie i wektorowaniem ciągu.",
+    tech: ["Rakiety", "TVC", "Mikrokontrolery", "System odzysku"],
+    status: "W trakcie",
+    live: "https://raketon.space",
+    image: "/projects/raketon.jpg",
+  },
   // Hobby
+  {
+    id: "krotkofalarstwo",
+    title: "Krótkofalarstwo — SP8DEV",
+    emoji: "📻",
+    category: "Hobby",
+    description:
+      "Radioamatorstwo to moja pasja — nadaję pod znakiem wywoławczym SP8DEV.",
+    details:
+      "Jestem krótkofalowcem z własnym znakiem wywoławczym SP8DEV. Radioamatorstwo łączy się z resztą moich projektów — od łączy radiowych dla dronów po sieci mesh na LoRa.",
+    tech: ["Radioamatorstwo", "SP8DEV", "Radio"],
+    status: "W trakcie",
+    image: "/projects/sp8dev.svg",
+    imageFit: "contain",
+    imageBg: "#0a0a0f",
+  },
   {
     id: "fotografia",
     title: "Fotografia",

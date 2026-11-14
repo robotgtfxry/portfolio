@@ -57,6 +57,18 @@ const timeline: TimelineItem[] = [
   },
   {
     type: "role",
+    title: "Członek klubu",
+    org: "Raketon.space",
+    url: "https://raketon.space",
+    period: "obecnie",
+    description:
+      "Klub modelarski, w którym budujemy rakiety. Pierwsza już poleciała — z bocznym systemem odzysku, mikrokontrolerami na pokładzie i wektorowaniem ciągu.",
+    tags: ["Rakiety", "TVC", "Mikrokontrolery", "Kosmonautyka"],
+    color: "purple",
+    collapsible: false,
+  },
+  {
+    type: "role",
     title: "Uczestnik programu",
     org: "StratoSTEM",
     url: "https://event.pcinn.org/stratostem",
@@ -65,6 +77,17 @@ const timeline: TimelineItem[] = [
       "Program edukacyjny Podkarpackiego Centrum Innowacji we współpracy z Boeing — budowa balonów stratosferycznych. Warsztaty dla uczniów szkół średnich z Podkarpacia: przygotowanie projektów i eksperymenty naukowe związane z przestrzenią kosmiczną.",
     tags: ["Balony stratosferyczne", "Boeing", "PCINN", "Kosmonautyka", "STEM"],
     color: "cyan",
+    collapsible: false,
+  },
+  {
+    type: "role",
+    title: "Uczestnik programu",
+    org: "Naukolatek – Nastoletni Naukowiec",
+    period: "2024 — 2025",
+    description:
+      "Miniprojekt badawczy „Konstelacja dronów” w konkursie Politechnicznej Sieci Via Carpatia, realizowany z Politechniką Rzeszowską — drony latające w formacji i wymieniające dane między sobą bez wsparcia pilota.",
+    tags: ["Drony", "Via Carpatia", "Politechnika Rzeszowska", "Nauka"],
+    color: "pink",
     collapsible: false,
   },
   {

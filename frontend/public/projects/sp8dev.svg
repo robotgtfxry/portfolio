@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="45%" r="60%">
+      <stop offset="0" stop-color="#1a1030"/>
+      <stop offset="1" stop-color="#0a0a0f"/>
+    </radialGradient>
+  </defs>
+  <rect width="600" height="400" fill="url(#g)"/>
+  <!-- antena -->
+  <g stroke="#00f0ff" stroke-width="4" fill="none" stroke-linecap="round">
+    <line x1="300" y1="90" x2="300" y2="185"/>
+    <line x1="300" y1="185" x2="270" y2="215"/>
+    <line x1="300" y1="185" x2="330" y2="215"/>
+  </g>
+  <circle cx="300" cy="90" r="7" fill="#00f0ff"/>
+  <!-- fale -->
+  <g fill="none" stroke-linecap="round" stroke-width="4">
+    <path d="M272 72 A40 40 0 0 0 272 108" stroke="#b400ff" opacity=".9"/>
+    <path d="M328 72 A40 40 0 0 1 328 108" stroke="#b400ff" opacity=".9"/>
+    <path d="M250 52 A70 70 0 0 0 250 128" stroke="#ff0080" opacity=".7"/>
+    <path d="M350 52 A70 70 0 0 1 350 128" stroke="#ff0080" opacity=".7"/>
+    <path d="M228 34 A100 100 0 0 0 228 146" stroke="#00f0ff" opacity=".4"/>
+    <path d="M372 34 A100 100 0 0 1 372 146" stroke="#00f0ff" opacity=".4"/>
+  </g>
+  <text x="300" y="300" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="72" font-weight="700" fill="#ffffff" letter-spacing="6">SP8DEV</text>
+  <text x="300" y="340" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="18" fill="#00f0ff" letter-spacing="4" opacity=".8">KRÓTKOFALOWIEC</text>
+</svg>

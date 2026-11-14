@@ -56,8 +56,7 @@ export default function ProjectPage({
           transition={{ delay: 0.2, duration: 0.6 }}
         >
           {/* Header */}
-          <div className="flex items-start gap-4 mb-6">
-            <span className="text-5xl">{project.emoji}</span>
+          <div className="mb-6">
             <div>
               <h1 className="text-3xl sm:text-4xl font-bold">{project.title}</h1>
               <div className="flex items-center gap-2 mt-2">
